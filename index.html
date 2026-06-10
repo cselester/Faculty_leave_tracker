@@ -525,6 +525,99 @@
             color: var(--green);
             font-weight: 600;
         }
+
+        /* Weekly breakdown table */
+        .wk-tbl {
+            border-collapse: collapse;
+            font-size: 11px;
+            width: 100%;
+        }
+
+        .wk-tbl th,
+        .wk-tbl td {
+            padding: 5px 8px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .wk-tbl thead th {
+            background: var(--surface2);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        .wk-tbl .col-region {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: var(--surface);
+            min-width: 110px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .wk-tbl .col-center {
+            position: sticky;
+            left: 110px;
+            z-index: 2;
+            background: var(--surface);
+            min-width: 160px;
+            font-size: 11px;
+        }
+
+        .wk-tbl tr.wk-region-hdr td {
+            background: #EEF4FB;
+            font-weight: 700;
+            color: #185FA5;
+            border-top: 2px solid #B5D4F4;
+        }
+
+        .wk-tbl tr.wk-region-total td {
+            background: #f5f8fd;
+            font-weight: 600;
+            color: #185FA5;
+            font-style: italic;
+        }
+
+        .wk-tbl tr.wk-region-hdr .col-region,
+        .wk-tbl tr.wk-region-total .col-region {
+            background: #EEF4FB;
+        }
+
+        .wk-tbl tr.wk-region-hdr .col-center,
+        .wk-tbl tr.wk-region-total .col-center {
+            background: #EEF4FB;
+        }
+
+        .wk-tbl tr.wk-grand-total td {
+            background: #e8f0f7;
+            font-weight: 700;
+            border-top: 2px solid var(--border);
+        }
+
+        .wk-tbl tr.wk-grand-total .col-region,
+        .wk-tbl tr.wk-grand-total .col-center {
+            background: #e8f0f7;
+        }
+
+        .wk-tbl .wk-sep {
+            border-left: 2px solid #c0d4ec;
+        }
+
+        .wk-tbl .wk-alt {
+            background: #fafbfc;
+        }
+
+        .wk-tbl thead tr.wk-hdr2 th {
+            font-size: 9px;
+            color: var(--text3);
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -825,6 +918,15 @@
                 <h3>Month-wise region breakdown <span style="font-weight:400;color:var(--text3);font-size:11px">— scroll
                         right for more months</span></h3>
                 <div id="sd-monthly-pivot" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Weekly breakdown — Region > Center hierarchy, cumulative + per-week columns -->
+            <div class="card full" style="margin-bottom:16px">
+                <h3>Weekly breakdown — Region › Center
+                    <span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px">Weeks run Mon–Sun
+                        within the selected date range</span>
+                </h3>
+                <div id="sd-weekly-pivot" style="overflow-x:auto;max-height:600px;overflow-y:auto"></div>
             </div>
 
             <!-- Filtered raw records (status = to be considered) -->
@@ -1516,6 +1618,148 @@
         <td style="font-size:11px">${row.tillDate || '—'}</td>
         <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
     </tr>`).join('') || '<tr><td colspan="10" class="empty">No "To be considered" records in range.</td></tr>';
+
+            // ── Weekly breakdown pivot ────────────────────────────────
+            buildWeeklyPivot(base, gv('sd-from'), gv('sd-to'));
+        }
+
+        // ── WEEKLY BREAKDOWN PIVOT ────────────────────────────────────
+        // Layout matches sample:
+        //   • Region column shows region name only on the FIRST center row of that group (merged-cell style)
+        //   • No separate region header/subtotal rows — just center data rows
+        //   • Weeks auto-derived from date range (Mon–Sun), numbered Week 1 (earliest) … Week N (latest)
+        //     but displayed right-to-left: Cumulative | Week N | … | Week 1
+        //   • OVERALL grand-total row at bottom
+        function buildWeeklyPivot(base, fromStr, toStr) {
+            const el = document.getElementById('sd-weekly-pivot');
+            if (!el) return;
+            if (!base.length) { el.innerHTML = '<p class="empty">No "To be considered" data in range.</p>'; return; }
+
+            // ── Date range ────────────────────────────────────────────
+            const allDates = base.map(r => r.fromDate).filter(Boolean).sort();
+            const rangeFrom = fromStr || allDates[0];
+            const rangeTo = toStr || allDates[allDates.length - 1];
+
+            // ── Week helpers (Mon–Sun) ────────────────────────────────
+            function toISO(d) { return d.toISOString().slice(0, 10); }
+            function getMon(s) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return toISO(d); }
+            function getSun(s) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + 6); return toISO(d); }
+            function fmtD(s) { if (!s) return '—'; const [, m, d] = s.split('-'); return `${+d} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1]}`; }
+
+            // Collect distinct Mon–Sun weeks that have any data in range
+            const monSet = new Set();
+            base.forEach(r => {
+                if (!r.fromDate || r.fromDate < rangeFrom || r.fromDate > rangeTo) return;
+                monSet.add(getMon(r.fromDate));
+            });
+            // Ascending (oldest first = Week 1)
+            const mondays = [...monSet].sort();
+            if (!mondays.length) { el.innerHTML = '<p class="empty">No data to show.</p>'; return; }
+
+            // Week definitions: Week 1 = oldest … Week N = newest
+            const weekDefs = mondays.map((mon, i) => ({
+                mon, sun: getSun(mon),
+                label: `Week No. ${i + 1}  (${fmtD(mon)} – ${fmtD(getSun(mon))})`
+            }));
+
+            // Column order: Cumulative first, then Week N down to Week 1 (newest → oldest, matching sample)
+            const cumLabel = `Cumulative  (${fmtD(rangeFrom)} – ${fmtD(rangeTo)})`;
+            const allCols = [
+                { label: cumLabel, isCum: true },
+                ...[...weekDefs].reverse()   // newest week first
+            ];
+
+            const SUBCOLS = ['Total Leaves Events', 'Total No. of Leaves Days', 'Sudden Leaves Events', 'Sudden Leaves Events %'];
+
+            // ── Stats for a slice ─────────────────────────────────────
+            function ws(rows) {
+                const te = rows.length;
+                const td = rows.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+                const se = rows.filter(isSudden).length;
+                if (!te) return { te: 0, td: '0', se: 0, pctHtml: '—' };
+                const v = se / te * 100;
+                const cls = v >= 30 ? 'pct-high' : v >= 20 ? 'pct-mid' : 'pct-low';
+                return { te, td: fmtDays(td), se, pctHtml: `<span class="${cls}">${v.toFixed(2)}%</span>` };
+            }
+
+            function slice(rows, col) {
+                if (col.isCum) return rows.filter(r => r.fromDate && r.fromDate >= rangeFrom && r.fromDate <= rangeTo);
+                return rows.filter(r => r.fromDate && r.fromDate >= col.mon && r.fromDate <= col.sun);
+            }
+
+            function cells(rows, col, isSepCol) {
+                const s = ws(slice(rows, col));
+                const sep = isSepCol ? 'border-left:2px solid #c0d4ec;' : '';
+                return `<td style="text-align:right;${sep}">${s.te}</td>
+                <td style="text-align:right">${s.td}</td>
+                <td style="text-align:right">${s.se}</td>
+                <td style="text-align:right">${s.pctHtml}</td>`;
+            }
+
+            // ── Build headers ─────────────────────────────────────────
+            // Row 1: Region | Center | [Cumulative colspan=4] | [Week N colspan=4] | …
+            let hdr1 = `<tr>
+        <th class="col-region" rowspan="2" style="text-align:left;border-right:1px solid var(--border)">Region</th>
+        <th class="col-center" rowspan="2" style="text-align:left;border-right:2px solid var(--border)">Center</th>`;
+            allCols.forEach(col => {
+                hdr1 += `<th colspan="4" style="text-align:center;border-left:2px solid #c0d4ec;background:#EEF4FB">${col.label}</th>`;
+            });
+            hdr1 += '</tr>';
+
+            // Row 2: sub-column labels
+            let hdr2 = '<tr class="wk-hdr2">';
+            allCols.forEach((col, ci) => {
+                SUBCOLS.forEach((sc, si) => {
+                    const bl = si === 0 ? 'border-left:2px solid #c0d4ec;' : '';
+                    const bg = ci % 2 === 0 ? 'background:#f0f4fa;' : 'background:#f8f9fa;';
+                    hdr2 += `<th style="text-align:right;${bl}${bg}">${sc}</th>`;
+                });
+            });
+            hdr2 += '</tr>';
+
+            // ── Build data rows ───────────────────────────────────────
+            const regions = [...new Set(base.map(x => x.region).filter(Boolean))].sort();
+            let bodyHtml = '';
+
+            regions.forEach(reg => {
+                const regRows = base.filter(x => x.region === reg);
+                const centers = [...new Set(regRows.map(x => x.center).filter(Boolean))].sort();
+
+                centers.forEach((ctr, ci) => {
+                    const ctrRows = regRows.filter(x => x.center === ctr);
+                    const shortName = ctr.replace(' Vidyapeeth', '');
+                    const isFirst = ci === 0;
+                    const isLast = ci === centers.length - 1;
+
+                    // Region cell: show name only on first center row; rowspan covers all centers of this region
+                    let regionCell;
+                    if (isFirst) {
+                        regionCell = `<td class="col-region" rowspan="${centers.length}"
+                    style="vertical-align:middle;border-right:1px solid var(--border);border-top:2px solid #B5D4F4">${reg}</td>`;
+                    } else {
+                        regionCell = ''; // covered by rowspan
+                    }
+
+                    const topBorder = isFirst ? 'border-top:2px solid #B5D4F4;' : '';
+                    bodyHtml += `<tr style="${topBorder}">
+                ${regionCell}
+                <td class="col-center" style="border-right:2px solid var(--border)">${shortName}</td>`;
+                    allCols.forEach((col, ci2) => { bodyHtml += cells(ctrRows, col, ci2 === 0); });
+                    bodyHtml += '</tr>';
+                });
+            });
+
+            // OVERALL row
+            bodyHtml += `<tr class="wk-grand-total" style="border-top:2px solid var(--border)">
+        <td class="col-region" style="border-right:1px solid var(--border)">OVERALL</td>
+        <td class="col-center" style="border-right:2px solid var(--border)"></td>`;
+            allCols.forEach((col, ci) => { bodyHtml += cells(base, col, ci === 0); });
+            bodyHtml += '</tr>';
+
+            el.innerHTML = `<table class="wk-tbl">
+        <thead>${hdr1}${hdr2}</thead>
+        <tbody>${bodyHtml}</tbody>
+    </table>`;
         }
 
         // ── CHART HELPERS ─────────────────────────────────────────────
