@@ -569,16 +569,22 @@
                 <div class="fgroup"><label>From date</label><input type="date" id="rg-from" onchange="renderRegion()">
                 </div>
                 <div class="fgroup"><label>To date</label><input type="date" id="rg-to" onchange="renderRegion()"></div>
-                <div class="fgroup"><label>Region</label><select id="rg-filter-region"
-                        onchange="onRegionFilterChange()">
+                <div class="fgroup">
+                    <label>Region</label>
+                    <select id="rg-filter-region" onchange="onRegionFilterChange()">
                         <option value="">All regions</option>
-                    </select></div>
-                <div class="fgroup"><label>Centers <small
-                            style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label><select
-                        id="rg-filter-centers" multiple style="min-width:200px"></select></div>
-                <div class="fgroup"><label>Status <small
-                            style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label><select
-                        id="rg-filter-status" multiple style="min-width:180px"></select></div>
+                    </select>
+                </div>
+                <div class="fgroup">
+                    <label>Centers <small style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label>
+                    <!-- FIX: added onchange="renderRegion()" so filter fires on selection -->
+                    <select id="rg-filter-centers" multiple style="min-width:200px" onchange="renderRegion()"></select>
+                </div>
+                <div class="fgroup">
+                    <label>Status <small style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label>
+                    <!-- FIX: added onchange="renderRegion()" so filter fires on selection -->
+                    <select id="rg-filter-status" multiple style="min-width:180px" onchange="renderRegion()"></select>
+                </div>
                 <button class="clear-btn" onclick="clearRegionFilters()">Clear</button>
             </div>
             <div class="kpi-grid" id="rg-kpis"></div>
@@ -734,7 +740,6 @@
                 </div>
             </div>
         </div>
-
     </main>
 
     <script>
@@ -754,25 +759,11 @@
         let selCenter = '';
 
         // ── REGION NORMALISATION ──────────────────────────────────────
-        // Strips spaces and special chars, lowercases → canonical key
-        // e.g. "Delhi + HR", "Delhi+HR", "delhi + hr" all → "deltihr"
         function regionKey(r) { return (r || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-
-        // Map from canonical key → display name (first seen wins)
-        let REGION_MAP = {};   // { 'delhihr': 'Delhi + HR', ... }
-
+        let REGION_MAP = {};
         function normaliseRows(rows) {
-            // Build canonical → display map from all rows
-            rows.forEach(r => {
-                if (!r.region) return;
-                const k = regionKey(r.region);
-                if (k && !REGION_MAP[k]) REGION_MAP[k] = r.region.trim();
-            });
-            // Rewrite each row's region to its canonical display name
-            rows.forEach(r => {
-                const k = regionKey(r.region);
-                if (k && REGION_MAP[k]) r.region = REGION_MAP[k];
-            });
+            rows.forEach(r => { if (!r.region) return; const k = regionKey(r.region); if (k && !REGION_MAP[k]) REGION_MAP[k] = r.region.trim(); });
+            rows.forEach(r => { const k = regionKey(r.region); if (k && REGION_MAP[k]) r.region = REGION_MAP[k]; });
         }
 
         // ── TABS ──────────────────────────────────────────────────────
@@ -793,7 +784,6 @@
             localStorage.setItem('leaveApiUrl', url); loadData();
         }
         function getApiUrl() { return localStorage.getItem('leaveApiUrl') || document.getElementById('apiUrl').value.trim(); }
-
         let _loadId = 0;
 
         async function loadData() {
@@ -805,14 +795,18 @@
             DATA = { rows: [], summary: null, centers: [] };
             REGION_MAP = {};
 
+            // FIX: Reset region-tab multi-selects on full reload so initRegionMultiSelects
+            // will repopulate them with the fresh data.
+            ['rg-filter-centers', 'rg-filter-status'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.innerHTML = '';
+            });
+
             try {
                 const centRes = await fetch(url + '?action=centers').then(r => r.json());
                 if (myId !== _loadId) return;
                 if (!centRes.ok) throw new Error(centRes.error || 'Could not load center list');
 
-                // Use normalised region keys for grouping requests
                 const rawRegions = [...new Set(centRes.data.map(c => c.region).filter(r => r && r !== '#N/A'))];
-                // Deduplicate by canonical key
                 const seenKeys = new Set();
                 const regions = rawRegions.filter(r => { const k = regionKey(r); if (seenKeys.has(k)) return false; seenKeys.add(k); return true; });
                 const totalRegions = regions.length;
@@ -860,7 +854,6 @@
 
         // ── FILTER HELPERS ────────────────────────────────────────────
         function gv(id) { return document.getElementById(id)?.value || ''; }
-
         function dateFilter(rows, fromId, toId) {
             let d = rows;
             const f = gv(fromId), t = gv(toId);
@@ -868,22 +861,18 @@
             if (t) d = d.filter(r => r.fromDate && r.fromDate <= t);
             return d;
         }
-
         function multiSelected(id) {
             const el = document.getElementById(id); if (!el) return [];
             return [...el.selectedOptions].map(o => o.value).filter(Boolean);
         }
-
         function clearFilters(prefix) {
             ['from', 'to', 'region', 'nature', 'status', 'ltype', 'center'].forEach(s => {
                 const el = document.getElementById(prefix + '-' + s); if (!el) return;
-                if (el.tagName === 'SELECT' && el.multiple) {
-                    [...el.options].forEach(o => o.selected = false);
-                } else { el.value = ''; }
+                if (el.tagName === 'SELECT' && el.multiple) { [...el.options].forEach(o => o.selected = false); }
+                else { el.value = ''; }
             });
             renderCurrentTab(document.querySelector('.tab.active')?.dataset.tab || 'overview');
         }
-
         function clearRegionFilters() {
             ['rg-from', 'rg-to'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
             ['rg-filter-region', 'rg-filter-centers', 'rg-filter-status'].forEach(id => {
@@ -895,6 +884,18 @@
         }
 
         // ── POPULATE FILTERS ──────────────────────────────────────────
+        // FIX SUMMARY:
+        // The original code called fillMulti() for rg-filter-centers and rg-filter-status
+        // on every populateFilters() call (which happens after every region chunk loads).
+        // fillMulti() rebuilt the option list, which destroyed any existing user selections.
+        //
+        // New approach:
+        //   • populateFilters() only touches the single-select dropdowns.
+        //   • Region-tab multi-selects (centers + status) are populated ONCE via
+        //     initRegionMultiSelects(), which skips if options already exist.
+        //   • onRegionFilterChange() rebuilds the Centers list when the region dropdown
+        //     changes, restoring any previously selected centers that still belong to
+        //     the new region scope.
         function populateFilters() {
             const r = DATA.rows;
             const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
@@ -910,19 +911,11 @@
                 vals.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
                 if (cur) el.value = cur;
             };
-            const fillMulti = (id, vals) => {
-                const el = document.getElementById(id); if (!el) return;
-                const cur = multiSelected(id);
-                el.innerHTML = '';
-                vals.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; if (cur.includes(v)) o.selected = true; el.appendChild(o); });
-            };
 
             // Overview
             fillSingle('ov-region', regions); fillSingle('ov-nature', natures); fillSingle('ov-status', statuses);
-            // Region tab
+            // Region tab — region dropdown only; multi-selects managed by initRegionMultiSelects
             fillSingle('rg-filter-region', regions);
-            fillMulti('rg-filter-centers', centers);
-            fillMulti('rg-filter-status', statuses);
             // Center tab
             fillSingle('ctr-nature', natures); fillSingle('ctr-status', statuses);
             // Faculty tab
@@ -930,16 +923,45 @@
             fillSingle('fl-ltype', ltypes); fillSingle('fl-nature', natures); fillSingle('fl-status', statuses);
             // Trends tab
             fillSingle('tr-region', regions);
+
+            // Initialise region-tab multi-selects only when they are empty (first load or after reset)
+            initRegionMultiSelects(centers, statuses);
         }
 
-        // When region dropdown changes in region tab, filter center multi-select
+        // Populate Centers and Status multi-selects only if they have no options yet.
+        // This prevents wiping user selections when new data chunks arrive.
+        function initRegionMultiSelects(centers, statuses) {
+            const cenEl = document.getElementById('rg-filter-centers');
+            const stEl = document.getElementById('rg-filter-status');
+
+            if (cenEl && cenEl.options.length === 0) {
+                centers.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; cenEl.appendChild(o); });
+            }
+            if (stEl && stEl.options.length === 0) {
+                statuses.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; stEl.appendChild(o); });
+            }
+        }
+
+        // When region dropdown changes, rebuild Centers multi-select scoped to that region.
+        // Preserve any previously selected centers that still exist in the new scope.
         function onRegionFilterChange() {
             const reg = gv('rg-filter-region');
-            const r = DATA.rows;
-            const centers = [...new Set(r.filter(x => !reg || x.region === reg).map(x => x.center).filter(Boolean))].sort();
-            const el = document.getElementById('rg-filter-centers'); if (!el) return;
-            el.innerHTML = '';
-            centers.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
+            const centers = [...new Set(
+                DATA.rows.filter(x => !reg || x.region === reg).map(x => x.center).filter(Boolean)
+            )].sort();
+
+            const cenEl = document.getElementById('rg-filter-centers');
+            if (!cenEl) { renderRegion(); return; }
+
+            const prevSelected = multiSelected('rg-filter-centers');
+            cenEl.innerHTML = '';
+            centers.forEach(v => {
+                const o = document.createElement('option');
+                o.value = o.text = v;
+                if (prevSelected.includes(v)) o.selected = true;
+                cenEl.appendChild(o);
+            });
+
             renderRegion();
         }
 
@@ -973,7 +995,6 @@
             if (reg) r = r.filter(x => x.region === reg);
             if (nat) r = r.filter(x => x.nature === nat);
             if (st) r = r.filter(x => x.status === st);
-
             const totalDays = r.reduce((a, x) => a + (parseFloat(x.actualDays) || 1), 0);
             const uniqueFac = new Set(r.map(x => x.faculty)).size;
             const sudden = r.filter(x => x.nature === 'Sudden').length;
@@ -999,9 +1020,11 @@
         function renderRegion() {
             let r = DATA.rows;
             r = dateFilter(r, 'rg-from', 'rg-to');
+
             const selReg = gv('rg-filter-region');
-            const selCens = multiSelected('rg-filter-centers');
-            const selSts = multiSelected('rg-filter-status');
+            const selCens = multiSelected('rg-filter-centers');  // FIX: now wired up with onchange
+            const selSts = multiSelected('rg-filter-status');   // FIX: now wired up with onchange
+
             if (selReg) r = r.filter(x => x.region === selReg);
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
             if (selSts.length) r = r.filter(x => selSts.includes(x.status));
@@ -1014,17 +1037,14 @@
                 { label: 'Total submissions', val: r.length, sub: 'Filtered', cls: 'blue' },
                 { label: 'Sudden rate', val: pct(r.filter(x => x.nature === 'Sudden').length, r.length), sub: 'Across selection', cls: 'amber' },
             ]);
-
             const ltypes = [...new Set(r.map(x => x.leaveType).filter(Boolean))];
             const lcolors = ltypes.map(l => COLORS[l] || '#888');
             const stackDs = ltypes.map((lt, i) => ({ label: lt, data: regions.map(reg => r.filter(x => x.region === reg && x.leaveType === lt).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)), backgroundColor: lcolors[i], stack: 's' }));
             makeChart('ch-rstack', 'bar', { labels: regions, datasets: stackDs }, 'lg-rstack', ltypes, lcolors, { stacked: true });
-
             const nats = ['Preinformed', 'Exceptional', 'Sudden'];
             const natCols = [COLORS.Preinformed, COLORS.Exceptional, COLORS.Sudden];
             const natDs = nats.map((n, i) => ({ label: n, data: regions.map(reg => r.filter(x => x.region === reg && x.nature === n).length), backgroundColor: natCols[i] }));
             makeChart('ch-rnat', 'bar', { labels: regions, datasets: natDs }, 'lg-rnat', nats, natCols);
-
             document.getElementById('rg-count').textContent = '(' + r.length + ' records)';
             document.getElementById('rg-tbody').innerHTML = r.slice(0, 300).map(row => `<tr>
     <td><strong>${row.faculty || '—'}</strong></td>
@@ -1046,14 +1066,12 @@
             el.innerHTML = DATA.centers.map(c => `<div class="cpill${c === selCenter ? ' active' : ''}" onclick="pickCenter('${c.replace(/'/g, "\\'")}')">${c.replace(' Vidyapeeth', '')}</div>`).join('');
         }
         function pickCenter(name) { selCenter = name; buildCenterPills(); renderCenter(); }
-
         function renderCenter() {
             let d = DATA.rows.filter(r => r.center === selCenter);
             d = dateFilter(d, 'ctr-from', 'ctr-to');
             const nat = gv('ctr-nature'), st = gv('ctr-status');
             if (nat) d = d.filter(r => r.nature === nat);
             if (st) d = d.filter(r => r.status === st);
-
             const totalDays = d.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
             const unique = new Set(d.map(r => r.faculty)).size;
             const sudden = d.filter(r => r.nature === 'Sudden').length;
@@ -1117,7 +1135,6 @@
             r = dateFilter(r, 'tr-from', 'tr-to');
             const reg = gv('tr-region');
             if (reg) r = r.filter(x => x.region === reg);
-
             const totalDays = r.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
             setKPIs('tr-kpis', [
                 { label: 'Avg / center', val: Math.round(totalDays / Math.max(DATA.centers.length, 1)), sub: 'Leave days avg', cls: 'blue' },
