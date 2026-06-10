@@ -486,6 +486,45 @@
             padding: 4px;
             height: 88px
         }
+
+        /* Sudden Analysis table extras */
+        .sd-month-header td {
+            background: #f1f3f5;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--text);
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sd-total-row td {
+            background: #EEF4FB;
+            font-weight: 600;
+            color: #185FA5;
+        }
+
+        tfoot tr td {
+            background: #e8f0f7;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--text);
+            border-top: 2px solid var(--border);
+        }
+
+        .pct-high {
+            color: var(--coral);
+            font-weight: 600;
+        }
+
+        .pct-mid {
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        .pct-low {
+            color: var(--green);
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -513,6 +552,7 @@
             <div class="tab" data-tab="center">By center</div>
             <div class="tab" data-tab="faculty">Faculty tracker</div>
             <div class="tab" data-tab="trends">Trends</div>
+            <div class="tab" data-tab="sudden">Sudden Analysis</div>
         </div>
 
         <!-- OVERVIEW -->
@@ -740,6 +780,78 @@
                 </div>
             </div>
         </div>
+
+        <!-- SUDDEN ANALYSIS -->
+        <div id="pane-sudden" class="tab-pane">
+            <div class="filters">
+                <div class="fgroup"><label>Start date</label><input type="date" id="sd-from" onchange="renderSudden()">
+                </div>
+                <div class="fgroup"><label>End date</label><input type="date" id="sd-to" onchange="renderSudden()">
+                </div>
+                <div class="fgroup"><label>Region</label><select id="sd-region" onchange="renderSudden()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('sd')">Clear</button>
+            </div>
+
+            <!-- KPIs -->
+            <div class="kpi-grid" id="sd-kpis"></div>
+
+            <!-- Overall region summary table -->
+            <div class="card full" style="margin-bottom:16px">
+                <h3>Region summary — overall period <span id="sd-period"
+                        style="font-weight:400;color:var(--text3);margin-left:8px;font-size:12px"></span></h3>
+                <div class="tbl-wrap">
+                    <table id="sd-summary-tbl">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th style="text-align:right">Total Leave Events</th>
+                                <th style="text-align:right">Sudden Leave Events</th>
+                                <th style="text-align:right">Sudden Event %</th>
+                                <th style="text-align:right">Total Leave Days</th>
+                                <th style="text-align:right">Sudden Leave Days</th>
+                                <th style="text-align:right">Sudden Days %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sd-summary-body"></tbody>
+                        <tfoot id="sd-summary-foot"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Month-wise comparison table — pivot: regions as rows, months as columns -->
+            <div class="card full" style="margin-bottom:16px">
+                <h3>Month-wise region breakdown <span style="font-weight:400;color:var(--text3);font-size:11px">— scroll
+                        right for more months</span></h3>
+                <div id="sd-monthly-pivot" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Filtered raw records (status = to be considered) -->
+            <div class="card full">
+                <h3>Records — status: "To be considered" <span id="sd-rec-count"
+                        style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Faculty</th>
+                                <th>Emp ID</th>
+                                <th>Center</th>
+                                <th>Region</th>
+                                <th>Leave type</th>
+                                <th>Nature</th>
+                                <th>Days</th>
+                                <th>From</th>
+                                <th>Till</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sd-rec-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -923,6 +1035,8 @@
             fillSingle('fl-ltype', ltypes); fillSingle('fl-nature', natures); fillSingle('fl-status', statuses);
             // Trends tab
             fillSingle('tr-region', regions);
+            // Sudden Analysis tab
+            fillSingle('sd-region', regions);
 
             // Initialise region-tab multi-selects only when they are empty (first load or after reset)
             initRegionMultiSelects(centers, statuses);
@@ -985,6 +1099,7 @@
             else if (name === 'center') { buildCenterPills(); renderCenter(); }
             else if (name === 'faculty') renderFacultyTable();
             else if (name === 'trends') renderTrends();
+            else if (name === 'sudden') renderSudden();
         }
 
         // ── OVERVIEW ──────────────────────────────────────────────────
@@ -1158,6 +1273,249 @@
             const cDays = centers.map(c => Math.round(r.filter(x => x.center === c).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)));
             const cRegs = centers.map(c => r.find(x => x.center === c)?.region || '');
             makeChart('ch-ccomp', 'bar', { labels: centers.map(c => c.replace(' Vidyapeeth', '').split(' - ').pop()), datasets: [{ label: 'Leave days', data: cDays, backgroundColor: cRegs.map(reg => COLORS[reg] || '#888'), borderRadius: 4 }] }, '', '', '', { rotateTicks: true });
+        }
+
+        // ── SUDDEN ANALYSIS ───────────────────────────────────────────
+        function isSudden(r) { return (r.nature || '').toLowerCase() === 'sudden'; }
+        // Only "To be considered" records count — "Not to be considered" excluded
+        function isConsidered(r) {
+            const s = (r.status || '').toLowerCase();
+            return s.includes('consider') && !s.includes('not');
+        }
+
+        function pctFmt(num, den) {
+            if (!den) return '—';
+            const v = num / den * 100;
+            const cls = v >= 30 ? 'pct-high' : v >= 20 ? 'pct-mid' : 'pct-low';
+            return `<span class="${cls}">${v.toFixed(2)}%</span>`;
+        }
+        function fmtDays(v) { return v % 1 === 0 ? v : v.toFixed(1); }
+
+        function calcStats(rows) {
+            // ALL metrics derived from "To be considered" rows only
+            const base = rows.filter(isConsidered);
+            const totalEvents = base.length;
+            const suddenEvents = base.filter(isSudden).length;
+            const totalDays = base.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+            const suddenDays = base.filter(isSudden).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+            return { totalEvents, suddenEvents, totalDays, suddenDays };
+        }
+
+        function statsRow(label, s, rowCls = '') {
+            const cls = rowCls ? ` class="${rowCls}"` : '';
+            return `<tr${cls}>
+        <td>${label}</td>
+        <td style="text-align:right">${s.totalEvents}</td>
+        <td style="text-align:right">${s.suddenEvents}</td>
+        <td style="text-align:right">${pctFmt(s.suddenEvents, s.totalEvents)}</td>
+        <td style="text-align:right">${fmtDays(s.totalDays)}</td>
+        <td style="text-align:right">${fmtDays(s.suddenDays)}</td>
+        <td style="text-align:right">${pctFmt(s.suddenDays, s.totalDays)}</td>
+    </tr>`;
+        }
+
+        function renderSudden() {
+            let r = DATA.rows;
+            r = dateFilter(r, 'sd-from', 'sd-to');
+            const selReg = gv('sd-region');
+            if (selReg) r = r.filter(x => x.region === selReg);
+
+            // Base = "To be considered" only (excludes "Not to be considered")
+            const base = r.filter(isConsidered);
+
+            document.getElementById('sd-period').textContent =
+                (gv('sd-from') || 'all') + ' → ' + (gv('sd-to') || 'all');
+
+            // ── KPIs (all from considered base) ──────────────────────
+            const all = calcStats(r);   // calcStats already filters to considered internally
+            setKPIs('sd-kpis', [
+                { label: 'Total leave events', val: all.totalEvents, sub: 'Status: To be considered', cls: 'blue' },
+                { label: 'Sudden events', val: all.suddenEvents, sub: pctFmt(all.suddenEvents, all.totalEvents).replace(/<[^>]+>/g, '') + ' of total', cls: 'coral' },
+                { label: 'Total leave days', val: fmtDays(all.totalDays), sub: 'Considered records only', cls: 'purple' },
+                { label: 'Sudden leave days', val: fmtDays(all.suddenDays), sub: pctFmt(all.suddenDays, all.totalDays).replace(/<[^>]+>/g, '') + ' of days', cls: 'amber' },
+                { label: 'Regions in view', val: [...new Set(base.map(x => x.region).filter(Boolean))].length, sub: 'With considered leaves', cls: 'green' },
+            ]);
+
+            // ── Overall region summary table ──────────────────────────
+            const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
+            let summaryHtml = '';
+            regions.forEach(reg => {
+                summaryHtml += statsRow(reg, calcStats(r.filter(x => x.region === reg)));
+            });
+            const gtd = document.getElementById('sd-summary-foot');
+            if (gtd) {
+                const gs = calcStats(r);
+                gtd.innerHTML = `<tr>
+            <td><strong>Grand Total</strong></td>
+            <td style="text-align:right"><strong>${gs.totalEvents}</strong></td>
+            <td style="text-align:right"><strong>${gs.suddenEvents}</strong></td>
+            <td style="text-align:right">${pctFmt(gs.suddenEvents, gs.totalEvents)}</td>
+            <td style="text-align:right"><strong>${fmtDays(gs.totalDays)}</strong></td>
+            <td style="text-align:right"><strong>${fmtDays(gs.suddenDays)}</strong></td>
+            <td style="text-align:right">${pctFmt(gs.suddenDays, gs.totalDays)}</td>
+        </tr>`;
+            }
+            document.getElementById('sd-summary-body').innerHTML = summaryHtml ||
+                '<tr><td colspan="7" class="empty">No data.</td></tr>';
+
+            // ── Month-wise PIVOT table (months = columns, regions = rows) ──
+            const months = [...new Set(base.map(x => x.fromDate && x.fromDate.slice(0, 7)).filter(Boolean))].sort();
+            const allRegs = [...new Set(base.map(x => x.region).filter(Boolean))].sort();
+
+            // Build pivot container — replace the card's inner div with a scrollable pivot
+            const pivotContainer = document.getElementById('sd-monthly-pivot');
+
+            if (!months.length) {
+                pivotContainer.innerHTML = '<p class="empty">No data in range.</p>';
+            } else {
+                // Each month = 6 sub-columns (events, sudden events, sudden%, days, sudden days, sudden days%)
+                // Region = rows.  Grand total row at bottom, Grand total column at right.
+                const SUBCOLS = ['Events', 'Sudden Ev.', 'Ev. %', 'Days', 'Sudden Days', 'Days %'];
+
+                // Pre-compute stats per region×month
+                const stats = {}; // stats[reg][mon]
+                allRegs.forEach(reg => {
+                    stats[reg] = {};
+                    months.forEach(mon => {
+                        const slice = base.filter(x => x.region === reg && x.fromDate && x.fromDate.slice(0, 7) === mon);
+                        stats[reg][mon] = calcStats([...slice, ...slice.map(x => ({ ...x, status: 'To be considered' }))]);
+                        // calcStats already filters isConsidered, so pass raw slice but mark all as considered
+                        // Simpler: compute directly since slice is already filtered to base (isConsidered)
+                        stats[reg][mon] = {
+                            totalEvents: slice.length,
+                            suddenEvents: slice.filter(isSudden).length,
+                            totalDays: slice.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                            suddenDays: slice.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                        };
+                    });
+                });
+                // Column totals per month
+                const monthTotals = {};
+                months.forEach(mon => {
+                    const slice = base.filter(x => x.fromDate && x.fromDate.slice(0, 7) === mon);
+                    monthTotals[mon] = {
+                        totalEvents: slice.length,
+                        suddenEvents: slice.filter(isSudden).length,
+                        totalDays: slice.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                        suddenDays: slice.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                    };
+                });
+                // Row totals per region
+                const regTotals = {};
+                allRegs.forEach(reg => {
+                    const slice = base.filter(x => x.region === reg);
+                    regTotals[reg] = {
+                        totalEvents: slice.length,
+                        suddenEvents: slice.filter(isSudden).length,
+                        totalDays: slice.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                        suddenDays: slice.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                    };
+                });
+                // Grand total
+                const grand = {
+                    totalEvents: base.length,
+                    suddenEvents: base.filter(isSudden).length,
+                    totalDays: base.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                    suddenDays: base.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
+                };
+
+                function cellBlock(s, boldTotal = false) {
+                    const b = boldTotal ? 'font-weight:600;' : '';
+                    return `
+                <td style="text-align:right;${b}">${s.totalEvents}</td>
+                <td style="text-align:right;${b}">${s.suddenEvents}</td>
+                <td style="text-align:right">${pctFmt(s.suddenEvents, s.totalEvents)}</td>
+                <td style="text-align:right;${b}">${fmtDays(s.totalDays)}</td>
+                <td style="text-align:right;${b}">${fmtDays(s.suddenDays)}</td>
+                <td style="text-align:right">${pctFmt(s.suddenDays, s.totalDays)}</td>`;
+                }
+
+                // Header row 1 — month names spanning 6 cols each, plus Region + Grand Total
+                let hdr1 = `<tr>
+            <th rowspan="2" style="position:sticky;left:0;background:var(--surface);z-index:2;min-width:120px">Region</th>`;
+                months.forEach(mon => {
+                    hdr1 += `<th colspan="6" style="text-align:center;background:#EEF4FB;border-left:2px solid var(--border)">${labelMonth(mon)}</th>`;
+                });
+                hdr1 += `<th colspan="6" style="text-align:center;background:#e8f0f7;border-left:2px solid var(--border)">Grand Total</th></tr>`;
+
+                // Header row 2 — sub-column labels
+                let hdr2 = '<tr>';
+                const repeatFor = months.length + 1; // months + grand total
+                for (let i = 0; i < repeatFor; i++) {
+                    const bg = i === months.length ? 'background:#e8f0f7;' : i % 2 === 0 ? 'background:#f8f9fa;' : '';
+                    const bl = 'border-left:2px solid var(--border);';
+                    SUBCOLS.forEach((sc, j) => {
+                        hdr2 += `<th style="text-align:right;font-size:10px;white-space:nowrap;${j === 0 ? bl : ''}${bg}">${sc}</th>`;
+                    });
+                }
+                hdr2 += '</tr>';
+
+                // Data rows — one per region
+                let dataRows = '';
+                allRegs.forEach(reg => {
+                    let row = `<tr><td style="position:sticky;left:0;background:var(--surface);z-index:1;font-weight:500">${reg}</td>`;
+                    months.forEach((mon, i) => {
+                        const s = stats[reg][mon];
+                        const bg = i % 2 === 0 ? 'background:#fafafa;' : '';
+                        row += `<td style="text-align:right;border-left:2px solid var(--border);${bg}">${s.totalEvents || 0}</td>
+                        <td style="text-align:right;${bg}">${s.suddenEvents || 0}</td>
+                        <td style="text-align:right;${bg}">${pctFmt(s.suddenEvents, s.totalEvents)}</td>
+                        <td style="text-align:right;${bg}">${fmtDays(s.totalDays || 0)}</td>
+                        <td style="text-align:right;${bg}">${fmtDays(s.suddenDays || 0)}</td>
+                        <td style="text-align:right;${bg}">${pctFmt(s.suddenDays, s.totalDays)}</td>`;
+                    });
+                    // Row grand total
+                    const rt = regTotals[reg];
+                    row += `<td style="text-align:right;border-left:2px solid var(--border);background:#e8f0f7;font-weight:600">${rt.totalEvents}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${rt.suddenEvents}</td>
+                    <td style="text-align:right;background:#e8f0f7">${pctFmt(rt.suddenEvents, rt.totalEvents)}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${fmtDays(rt.totalDays)}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${fmtDays(rt.suddenDays)}</td>
+                    <td style="text-align:right;background:#e8f0f7">${pctFmt(rt.suddenDays, rt.totalDays)}</td>`;
+                    row += '</tr>';
+                    dataRows += row;
+                });
+
+                // Grand total row (bottom)
+                let totalRow = `<tr style="background:#e8f0f7;font-weight:700;border-top:2px solid var(--border)">
+            <td style="position:sticky;left:0;background:#e8f0f7;z-index:1">Grand Total</td>`;
+                months.forEach(mon => {
+                    const mt = monthTotals[mon];
+                    totalRow += `<td style="text-align:right;border-left:2px solid var(--border)">${mt.totalEvents}</td>
+                         <td style="text-align:right">${mt.suddenEvents}</td>
+                         <td style="text-align:right">${pctFmt(mt.suddenEvents, mt.totalEvents)}</td>
+                         <td style="text-align:right">${fmtDays(mt.totalDays)}</td>
+                         <td style="text-align:right">${fmtDays(mt.suddenDays)}</td>
+                         <td style="text-align:right">${pctFmt(mt.suddenDays, mt.totalDays)}</td>`;
+                });
+                totalRow += `<td style="text-align:right;border-left:2px solid var(--border)">${grand.totalEvents}</td>
+                     <td style="text-align:right">${grand.suddenEvents}</td>
+                     <td style="text-align:right">${pctFmt(grand.suddenEvents, grand.totalEvents)}</td>
+                     <td style="text-align:right">${fmtDays(grand.totalDays)}</td>
+                     <td style="text-align:right">${fmtDays(grand.suddenDays)}</td>
+                     <td style="text-align:right">${pctFmt(grand.suddenDays, grand.totalDays)}</td>`;
+                totalRow += '</tr>';
+
+                pivotContainer.innerHTML = `<table style="border-collapse:collapse;font-size:11px;width:100%">
+            <thead>${hdr1}${hdr2}</thead>
+            <tbody>${dataRows}${totalRow}</tbody>
+        </table>`;
+            }
+
+            // ── "To be considered" raw records table ─────────────────
+            document.getElementById('sd-rec-count').textContent = '(' + base.length + ' records)';
+            document.getElementById('sd-rec-body').innerHTML = base.slice(0, 500).map(row => `<tr>
+        <td><strong>${row.faculty || '—'}</strong></td>
+        <td style="color:var(--text3);font-size:11px">${row.empId || '—'}</td>
+        <td style="font-size:12px">${(row.center || '—').replace(' Vidyapeeth', '')}</td>
+        <td><span class="region-tag">${row.region || '—'}</span></td>
+        <td style="font-size:12px">${row.leaveType || '—'}</td>
+        <td><span class="badge b-${(row.nature || '').toLowerCase()}">${row.nature || '—'}</span></td>
+        <td style="font-weight:600">${row.actualDays || 1}</td>
+        <td style="font-size:11px">${row.fromDate || '—'}</td>
+        <td style="font-size:11px">${row.tillDate || '—'}</td>
+        <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="10" class="empty">No "To be considered" records in range.</td></tr>';
         }
 
         // ── CHART HELPERS ─────────────────────────────────────────────
