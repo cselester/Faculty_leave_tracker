@@ -181,15 +181,28 @@
 
         .filters {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
             margin-bottom: 18px;
-            align-items: center
+            align-items: flex-end;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px
         }
 
-        .filters label {
-            font-size: 12px;
-            color: var(--text2)
+        .fgroup {
+            display: flex;
+            flex-direction: column;
+            gap: 4px
+        }
+
+        .fgroup label {
+            font-size: 11px;
+            color: var(--text2);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em
         }
 
         select {
@@ -200,6 +213,15 @@
             background: var(--surface);
             color: var(--text);
             cursor: pointer
+        }
+
+        input[type=date] {
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--surface);
+            color: var(--text)
         }
 
         .kpi-grid {
@@ -444,6 +466,26 @@
             background: var(--surface2);
             color: var(--text2)
         }
+
+        .clear-btn {
+            padding: 5px 12px;
+            font-size: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text2);
+            white-space: nowrap
+        }
+
+        .clear-btn:hover {
+            background: var(--surface2)
+        }
+
+        select[multiple] {
+            padding: 4px;
+            height: 88px
+        }
     </style>
 </head>
 
@@ -475,114 +517,137 @@
 
         <!-- OVERVIEW -->
         <div id="pane-overview" class="tab-pane active">
+            <div class="filters">
+                <div class="fgroup"><label>From date</label><input type="date" id="ov-from" onchange="renderOverview()">
+                </div>
+                <div class="fgroup"><label>To date</label><input type="date" id="ov-to" onchange="renderOverview()">
+                </div>
+                <div class="fgroup"><label>Region</label><select id="ov-region" onchange="renderOverview()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Nature</label><select id="ov-nature" onchange="renderOverview()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Status</label><select id="ov-status" onchange="renderOverview()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('ov')">Clear</button>
+            </div>
             <div class="kpi-grid" id="ov-kpis"></div>
             <div class="chart-grid">
                 <div class="card">
                     <h3>Leave type distribution</h3>
                     <div class="legend" id="lg-type"></div>
-                    <div style="position:relative;height:220px"><canvas id="ch-type" role="img"
-                            aria-label="Leave type distribution pie chart"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-type"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Nature of leave</h3>
                     <div class="legend" id="lg-nature"></div>
-                    <div style="position:relative;height:220px"><canvas id="ch-nature" role="img"
-                            aria-label="Nature of leave pie chart"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-nature"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Leave days by region</h3>
                     <div class="legend" id="lg-region"></div>
-                    <div style="position:relative;height:220px"><canvas id="ch-region" role="img"
-                            aria-label="Leave days by region"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-region"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Approval status</h3>
                     <div class="legend" id="lg-status"></div>
-                    <div style="position:relative;height:220px"><canvas id="ch-status" role="img"
-                            aria-label="Approval status doughnut"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-status"></canvas></div>
                 </div>
                 <div class="card full">
                     <h3>Monthly leave days — all centers</h3>
                     <div class="legend" id="lg-monthly"></div>
-                    <div style="position:relative;height:240px"><canvas id="ch-monthly" role="img"
-                            aria-label="Monthly leave trend"></canvas></div>
+                    <div style="position:relative;height:240px"><canvas id="ch-monthly"></canvas></div>
                 </div>
             </div>
         </div>
 
         <!-- BY REGION -->
         <div id="pane-region" class="tab-pane">
-            <div class="filters" id="rg-filters" style="align-items:flex-start;gap:16px;margin-bottom:18px">
-
-                <!-- Step 1: Regions -->
-                <div style="display:flex;flex-direction:column;gap:6px;min-width:180px">
-                    <label style="font-size:12px;color:var(--text2);font-weight:600">1 · Region</label>
-                    <div id="rg-region-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+            <div class="filters">
+                <div class="fgroup"><label>From date</label><input type="date" id="rg-from" onchange="renderRegion()">
                 </div>
-
-                <!-- Step 2: Centers (filtered by selected regions) -->
-                <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
-                    <label style="font-size:12px;color:var(--text2);font-weight:600">2 · Centers
-                        <span id="rg-ctr-hint" style="font-weight:400;color:var(--text3);margin-left:4px">(select a
-                            region first)</span>
-                    </label>
-                    <div
-                        style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
-                        <input id="rg-ctr-search" placeholder="Search centers…" oninput="rgRenderCenterList(this.value)"
-                            style="width:100%;padding:6px 10px;border:none;border-bottom:1px solid var(--border);font-size:13px;background:var(--surface2);outline:none" />
-                        <div id="rg-ctr-list" style="max-height:150px;overflow-y:auto"></div>
-                    </div>
-                    <div id="rg-ctr-pills" style="display:flex;flex-wrap:wrap;gap:5px;min-height:22px"></div>
-                </div>
-
-                <!-- Step 3: Approval status -->
-                <div style="display:flex;flex-direction:column;gap:6px">
-                    <label style="font-size:12px;color:var(--text2);font-weight:600">3 · Approval status</label>
-                    <div id="rg-status-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                </div>
-
-                <button class="refresh-btn"
-                    onclick="rgSelRegions.clear();rgSelCenters.clear();rgSelStatuses.clear();rgRenderRegionBtns();rgRenderCenterList();rgRenderStatusBtns();renderRegion()"
-                    style="margin-left:auto;margin-top:20px">&#x2715; Clear all</button>
+                <div class="fgroup"><label>To date</label><input type="date" id="rg-to" onchange="renderRegion()"></div>
+                <div class="fgroup"><label>Region</label><select id="rg-filter-region"
+                        onchange="onRegionFilterChange()">
+                        <option value="">All regions</option>
+                    </select></div>
+                <div class="fgroup"><label>Centers <small
+                            style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label><select
+                        id="rg-filter-centers" multiple style="min-width:200px"></select></div>
+                <div class="fgroup"><label>Status <small
+                            style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label><select
+                        id="rg-filter-status" multiple style="min-width:180px"></select></div>
+                <button class="clear-btn" onclick="clearRegionFilters()">Clear</button>
             </div>
-
             <div class="kpi-grid" id="rg-kpis"></div>
             <div class="chart-grid">
                 <div class="card full">
                     <h3>Leave days per region — stacked by type</h3>
                     <div class="legend" id="lg-rstack"></div>
-                    <div style="position:relative;height:280px"><canvas id="ch-rstack" role="img"
-                            aria-label="Region stacked bar"></canvas></div>
+                    <div style="position:relative;height:280px"><canvas id="ch-rstack"></canvas></div>
                 </div>
                 <div class="card full">
                     <h3>Preinformed vs sudden vs exceptional by region</h3>
                     <div class="legend" id="lg-rnat"></div>
-                    <div style="position:relative;height:240px"><canvas id="ch-rnat" role="img"
-                            aria-label="Nature by region grouped bar"></canvas></div>
+                    <div style="position:relative;height:240px"><canvas id="ch-rnat"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Filtered records <span id="rg-count"
+                            style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                    <div class="tbl-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Faculty</th>
+                                    <th>Emp ID</th>
+                                    <th>Center</th>
+                                    <th>Region</th>
+                                    <th>Leave type</th>
+                                    <th>Nature</th>
+                                    <th>Days</th>
+                                    <th>From</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rg-tbody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- BY CENTER -->
         <div id="pane-center" class="tab-pane">
+            <div class="filters">
+                <div class="fgroup"><label>From date</label><input type="date" id="ctr-from" onchange="renderCenter()">
+                </div>
+                <div class="fgroup"><label>To date</label><input type="date" id="ctr-to" onchange="renderCenter()">
+                </div>
+                <div class="fgroup"><label>Nature</label><select id="ctr-nature" onchange="renderCenter()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Status</label><select id="ctr-status" onchange="renderCenter()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('ctr')">Clear</button>
+            </div>
             <div class="center-pills" id="ctr-pills"></div>
             <div class="kpi-grid" id="ctr-kpis"></div>
             <div class="chart-grid">
                 <div class="card">
                     <h3>Leave types</h3>
                     <div class="legend" id="lg-ctype"></div>
-                    <div style="position:relative;height:220px"><canvas id="ch-ctype" role="img"
-                            aria-label="Center leave type pie"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-ctype"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Monthly trend</h3>
-                    <div style="position:relative;height:220px"><canvas id="ch-ctrend" role="img"
-                            aria-label="Center monthly bar"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-ctrend"></canvas></div>
                 </div>
                 <div class="card full">
                     <h3>Top 10 faculty by leave days</h3>
-                    <div style="position:relative;height:280px"><canvas id="ch-cfac" role="img"
-                            aria-label="Faculty leave horizontal bar"></canvas></div>
+                    <div style="position:relative;height:280px"><canvas id="ch-cfac"></canvas></div>
                 </div>
             </div>
         </div>
@@ -590,26 +655,26 @@
         <!-- FACULTY TRACKER -->
         <div id="pane-faculty" class="tab-pane">
             <div class="filters">
-                <label>Region</label>
-                <select id="fl-region" onchange="renderFacultyTable()">
-                    <option value="">All</option>
-                </select>
-                <label>Center</label>
-                <select id="fl-center" onchange="renderFacultyTable()">
-                    <option value="">All</option>
-                </select>
-                <label>Leave type</label>
-                <select id="fl-ltype" onchange="renderFacultyTable()">
-                    <option value="">All</option>
-                </select>
-                <label>Nature</label>
-                <select id="fl-nature" onchange="renderFacultyTable()">
-                    <option value="">All</option>
-                </select>
-                <label>Status</label>
-                <select id="fl-status" onchange="renderFacultyTable()">
-                    <option value="">All</option>
-                </select>
+                <div class="fgroup"><label>From date</label><input type="date" id="fl-from"
+                        onchange="renderFacultyTable()"></div>
+                <div class="fgroup"><label>To date</label><input type="date" id="fl-to" onchange="renderFacultyTable()">
+                </div>
+                <div class="fgroup"><label>Region</label><select id="fl-region" onchange="onFacRegionChange()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Center</label><select id="fl-center" onchange="renderFacultyTable()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Leave type</label><select id="fl-ltype" onchange="renderFacultyTable()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Nature</label><select id="fl-nature" onchange="renderFacultyTable()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Status</label><select id="fl-status" onchange="renderFacultyTable()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('fl')">Clear</button>
             </div>
             <div class="card full">
                 <h3>Faculty leave records <span id="fac-count"
@@ -639,28 +704,33 @@
 
         <!-- TRENDS -->
         <div id="pane-trends" class="tab-pane">
+            <div class="filters">
+                <div class="fgroup"><label>From date</label><input type="date" id="tr-from" onchange="renderTrends()">
+                </div>
+                <div class="fgroup"><label>To date</label><input type="date" id="tr-to" onchange="renderTrends()"></div>
+                <div class="fgroup"><label>Region</label><select id="tr-region" onchange="renderTrends()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('tr')">Clear</button>
+            </div>
             <div class="kpi-grid" id="tr-kpis"></div>
             <div class="chart-grid">
                 <div class="card full">
                     <h3>Week-on-week leave submissions</h3>
-                    <div style="position:relative;height:220px"><canvas id="ch-wow" role="img"
-                            aria-label="Week over week submissions"></canvas></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-wow"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Full day vs half day</h3>
                     <div class="legend" id="lg-dur"></div>
-                    <div style="position:relative;height:200px"><canvas id="ch-dur" role="img"
-                            aria-label="Duration split doughnut"></canvas></div>
+                    <div style="position:relative;height:200px"><canvas id="ch-dur"></canvas></div>
                 </div>
                 <div class="card">
                     <h3>Cut-off thursday distribution</h3>
-                    <div style="position:relative;height:200px"><canvas id="ch-cutoff" role="img"
-                            aria-label="Cutoff distribution bar"></canvas></div>
+                    <div style="position:relative;height:200px"><canvas id="ch-cutoff"></canvas></div>
                 </div>
                 <div class="card full">
                     <h3>Total leave days — center comparison</h3>
-                    <div style="position:relative;height:260px"><canvas id="ch-ccomp" role="img"
-                            aria-label="Center comparison bar"></canvas></div>
+                    <div style="position:relative;height:260px"><canvas id="ch-ccomp"></canvas></div>
                 </div>
             </div>
         </div>
@@ -674,12 +744,36 @@
             'Personal Leave Full Day': '#7F77DD', 'Other': '#888780',
             'Preinformed': '#1D9E75', 'Exceptional': '#EF9F27', 'Sudden': '#E24B4A',
             'Delhi + HR': '#378ADD', 'East': '#D4537E', 'UP': '#1D9E75', 'NCR + UK': '#EF9F27',
+            'Bihar+JH': '#7F77DD', 'Rajasthan': '#D85A30', 'MP+CG': '#1D9E75', 'Gujarat': '#D4537E',
+            'Maharashtra': '#EF9F27', 'KA + TN': '#E24B4A', 'PB + J&K': '#888780', 'AP & TS': '#378ADD',
             'Full Day': '#378ADD', 'Half Day': '#D4537E',
-            'Approved': '#1D9E75', 'To be considered': '#EF9F27', 'Rejected': '#E24B4A'
+            'Approved': '#1D9E75', 'To be considered': '#EF9F27', 'Rejected': '#E24B4A', 'Revoked': '#D85A30'
         };
         const CHARTS = {};
         let DATA = { rows: [], summary: null, centers: [] };
         let selCenter = '';
+
+        // ── REGION NORMALISATION ──────────────────────────────────────
+        // Strips spaces and special chars, lowercases → canonical key
+        // e.g. "Delhi + HR", "Delhi+HR", "delhi + hr" all → "deltihr"
+        function regionKey(r) { return (r || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+        // Map from canonical key → display name (first seen wins)
+        let REGION_MAP = {};   // { 'delhihr': 'Delhi + HR', ... }
+
+        function normaliseRows(rows) {
+            // Build canonical → display map from all rows
+            rows.forEach(r => {
+                if (!r.region) return;
+                const k = regionKey(r.region);
+                if (k && !REGION_MAP[k]) REGION_MAP[k] = r.region.trim();
+            });
+            // Rewrite each row's region to its canonical display name
+            rows.forEach(r => {
+                const k = regionKey(r.region);
+                if (k && REGION_MAP[k]) r.region = REGION_MAP[k];
+            });
+        }
 
         // ── TABS ──────────────────────────────────────────────────────
         document.querySelectorAll('.tab').forEach(t => {
@@ -687,8 +781,7 @@
                 document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
                 document.querySelectorAll('.tab-pane').forEach(x => x.classList.remove('active'));
                 t.classList.add('active');
-                const pane = document.getElementById('pane-' + t.dataset.tab);
-                if (pane) pane.classList.add('active');
+                document.getElementById('pane-' + t.dataset.tab)?.classList.add('active');
                 renderCurrentTab(t.dataset.tab);
             });
         });
@@ -697,13 +790,9 @@
         function saveAndLoad() {
             const url = document.getElementById('apiUrl').value.trim();
             if (!url) { alert('Please paste your Web App URL.'); return; }
-            localStorage.setItem('leaveApiUrl', url);
-            loadData();
+            localStorage.setItem('leaveApiUrl', url); loadData();
         }
-
-        function getApiUrl() {
-            return localStorage.getItem('leaveApiUrl') || document.getElementById('apiUrl').value.trim();
-        }
+        function getApiUrl() { return localStorage.getItem('leaveApiUrl') || document.getElementById('apiUrl').value.trim(); }
 
         let _loadId = 0;
 
@@ -711,18 +800,21 @@
             const url = getApiUrl();
             if (!url) { setStatus('err', 'No URL — paste your Web App URL above'); return; }
             document.getElementById('apiUrl').value = url;
-            setStatus('', '🔗 Connecting…');
-            setSyncDot(false);
-
+            setStatus('', '🔗 Connecting…'); setSyncDot(false);
             const myId = ++_loadId;
             DATA = { rows: [], summary: null, centers: [] };
+            REGION_MAP = {};
 
             try {
                 const centRes = await fetch(url + '?action=centers').then(r => r.json());
                 if (myId !== _loadId) return;
                 if (!centRes.ok) throw new Error(centRes.error || 'Could not load center list');
 
-                const regions = [...new Set(centRes.data.map(c => c.region).filter(r => r && r !== '#N/A'))].sort();
+                // Use normalised region keys for grouping requests
+                const rawRegions = [...new Set(centRes.data.map(c => c.region).filter(r => r && r !== '#N/A'))];
+                // Deduplicate by canonical key
+                const seenKeys = new Set();
+                const regions = rawRegions.filter(r => { const k = regionKey(r); if (seenKeys.has(k)) return false; seenKeys.add(k); return true; });
                 const totalRegions = regions.length;
                 setStatus('', `Loading region 0 / ${totalRegions}…`);
 
@@ -736,40 +828,131 @@
                             res.data.rows.forEach(r => DATA.rows.push(r));
                             DATA.centers = [...new Set(DATA.rows.map(r => r.center).filter(Boolean))];
                         }
-                    } catch (e) { /* skip failed region */ }
-
+                    } catch (e) { }
                     loaded++;
                     setStatus('', `Loading region ${loaded} / ${totalRegions} — ${DATA.rows.length} records so far…`);
-
                     if (DATA.rows.length > 0) {
+                        normaliseRows(DATA.rows);
                         populateFilters();
                         renderCurrentTab('overview');
                         if (loaded === 1) setSyncDot(true);
                     }
                 }
-
                 if (myId !== _loadId) return;
-
+                normaliseRows(DATA.rows);
                 setStatus('ok', `Connected — ${DATA.rows.length} records across ${DATA.centers.length} centers`);
                 setSyncDot(true);
                 document.getElementById('syncTime').textContent = new Date().toLocaleString('en-IN');
                 populateFilters();
                 renderCurrentTab('overview');
-
             } catch (e) {
                 if (myId !== _loadId) return;
-                setStatus('err', 'Error: ' + e.message);
-                setSyncDot(false);
+                setStatus('err', 'Error: ' + e.message); setSyncDot(false);
             }
         }
 
         function setStatus(cls, msg) {
             const el = document.getElementById('api-status');
-            el.className = cls === 'err' ? 'err' : (cls === 'ok' ? 'ok' : '');
+            el.className = cls ? (cls === 'err' ? 'err' : 'ok') : '';
             el.textContent = msg;
         }
-        function setSyncDot(on) {
-            document.getElementById('syncDot').style.background = on ? '#1D9E75' : '#E24B4A';
+        function setSyncDot(on) { document.getElementById('syncDot').style.background = on ? '#1D9E75' : '#E24B4A'; }
+
+        // ── FILTER HELPERS ────────────────────────────────────────────
+        function gv(id) { return document.getElementById(id)?.value || ''; }
+
+        function dateFilter(rows, fromId, toId) {
+            let d = rows;
+            const f = gv(fromId), t = gv(toId);
+            if (f) d = d.filter(r => r.fromDate && r.fromDate >= f);
+            if (t) d = d.filter(r => r.fromDate && r.fromDate <= t);
+            return d;
+        }
+
+        function multiSelected(id) {
+            const el = document.getElementById(id); if (!el) return [];
+            return [...el.selectedOptions].map(o => o.value).filter(Boolean);
+        }
+
+        function clearFilters(prefix) {
+            ['from', 'to', 'region', 'nature', 'status', 'ltype', 'center'].forEach(s => {
+                const el = document.getElementById(prefix + '-' + s); if (!el) return;
+                if (el.tagName === 'SELECT' && el.multiple) {
+                    [...el.options].forEach(o => o.selected = false);
+                } else { el.value = ''; }
+            });
+            renderCurrentTab(document.querySelector('.tab.active')?.dataset.tab || 'overview');
+        }
+
+        function clearRegionFilters() {
+            ['rg-from', 'rg-to'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+            ['rg-filter-region', 'rg-filter-centers', 'rg-filter-status'].forEach(id => {
+                const el = document.getElementById(id); if (!el) return;
+                if (el.multiple) { [...el.options].forEach(o => o.selected = false); }
+                else el.value = '';
+            });
+            renderRegion();
+        }
+
+        // ── POPULATE FILTERS ──────────────────────────────────────────
+        function populateFilters() {
+            const r = DATA.rows;
+            const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
+            const centers = [...new Set(r.map(x => x.center).filter(Boolean))].sort();
+            const ltypes = [...new Set(r.map(x => x.leaveType).filter(Boolean))].sort();
+            const natures = [...new Set(r.map(x => x.nature).filter(Boolean))].sort();
+            const statuses = [...new Set(r.map(x => x.status).filter(Boolean))].sort();
+
+            const fillSingle = (id, vals) => {
+                const el = document.getElementById(id); if (!el) return;
+                const cur = el.value;
+                el.innerHTML = '<option value="">All</option>';
+                vals.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
+                if (cur) el.value = cur;
+            };
+            const fillMulti = (id, vals) => {
+                const el = document.getElementById(id); if (!el) return;
+                const cur = multiSelected(id);
+                el.innerHTML = '';
+                vals.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; if (cur.includes(v)) o.selected = true; el.appendChild(o); });
+            };
+
+            // Overview
+            fillSingle('ov-region', regions); fillSingle('ov-nature', natures); fillSingle('ov-status', statuses);
+            // Region tab
+            fillSingle('rg-filter-region', regions);
+            fillMulti('rg-filter-centers', centers);
+            fillMulti('rg-filter-status', statuses);
+            // Center tab
+            fillSingle('ctr-nature', natures); fillSingle('ctr-status', statuses);
+            // Faculty tab
+            fillSingle('fl-region', regions); fillSingle('fl-center', centers);
+            fillSingle('fl-ltype', ltypes); fillSingle('fl-nature', natures); fillSingle('fl-status', statuses);
+            // Trends tab
+            fillSingle('tr-region', regions);
+        }
+
+        // When region dropdown changes in region tab, filter center multi-select
+        function onRegionFilterChange() {
+            const reg = gv('rg-filter-region');
+            const r = DATA.rows;
+            const centers = [...new Set(r.filter(x => !reg || x.region === reg).map(x => x.center).filter(Boolean))].sort();
+            const el = document.getElementById('rg-filter-centers'); if (!el) return;
+            el.innerHTML = '';
+            centers.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
+            renderRegion();
+        }
+
+        // When region changes in faculty tab, update center dropdown
+        function onFacRegionChange() {
+            const reg = gv('fl-region');
+            const centers = [...new Set(DATA.rows.filter(x => !reg || x.region === reg).map(x => x.center).filter(Boolean))].sort();
+            const el = document.getElementById('fl-center'); if (!el) return;
+            const cur = el.value;
+            el.innerHTML = '<option value="">All</option>';
+            centers.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
+            if (centers.includes(cur)) el.value = cur;
+            renderFacultyTable();
         }
 
         // ── RENDER ROUTER ─────────────────────────────────────────────
@@ -784,13 +967,17 @@
 
         // ── OVERVIEW ──────────────────────────────────────────────────
         function renderOverview() {
-            const s = DATA.summary;
-            const r = DATA.rows;
-            const uniqueFac = s ? s.uniqueFaculty : new Set(r.map(x => x.faculty)).size;
-            const totalDays = s ? s.totalDays : r.reduce((a, x) => a + (parseFloat(x.actualDays) || 1), 0);
-            const sudden = r.filter(x => x.nature === 'Sudden').length;
-            const pending = r.filter(x => x.status === 'To be considered').length;
+            let r = DATA.rows;
+            r = dateFilter(r, 'ov-from', 'ov-to');
+            const reg = gv('ov-region'), nat = gv('ov-nature'), st = gv('ov-status');
+            if (reg) r = r.filter(x => x.region === reg);
+            if (nat) r = r.filter(x => x.nature === nat);
+            if (st) r = r.filter(x => x.status === st);
 
+            const totalDays = r.reduce((a, x) => a + (parseFloat(x.actualDays) || 1), 0);
+            const uniqueFac = new Set(r.map(x => x.faculty)).size;
+            const sudden = r.filter(x => x.nature === 'Sudden').length;
+            const pending = r.filter(x => (x.status || '').toLowerCase().includes('consider')).length;
             setKPIs('ov-kpis', [
                 { label: 'Total leave days', val: Math.round(totalDays), sub: 'All centers', cls: 'blue' },
                 { label: 'Total submissions', val: r.length, sub: 'Across ' + DATA.centers.length + ' centers' },
@@ -799,182 +986,78 @@
                 { label: 'Avg days/submission', val: (totalDays / Math.max(r.length, 1)).toFixed(1), sub: 'Leave days avg', cls: 'purple' },
                 { label: 'Pending approval', val: pending, sub: 'To be considered', cls: 'amber' },
             ]);
-
-            const typeMap = s ? s.byType : countBy(r, 'leaveType');
-            const natMap = s ? s.byNature : countBy(r, 'nature');
-            const regMap = s ? s.byRegion : sumBy(r, 'region', 'actualDays');
-            const statMap = s ? s.byStatus : countBy(r, 'status');
-
-            makePie('ch-type', typeMap, 'lg-type', COLORS);
-            makePie('ch-nature', natMap, 'lg-nature', COLORS);
-            makeBar('ch-region', Object.keys(regMap), Object.values(regMap), 'lg-region', Object.keys(regMap).map(k => COLORS[k] || '#888'), 'Leave days');
-            makePie('ch-status', statMap, 'lg-status', COLORS);
-
-            const monthMap = s ? s.byMonth : buildMonthMap(r);
+            makePie('ch-type', countBy(r, 'leaveType'), 'lg-type', COLORS);
+            makePie('ch-nature', countBy(r, 'nature'), 'lg-nature', COLORS);
+            makeBar('ch-region', Object.keys(sumBy(r, 'region', 'actualDays')), Object.values(sumBy(r, 'region', 'actualDays')), 'lg-region', Object.keys(sumBy(r, 'region', 'actualDays')).map(k => COLORS[k] || '#888'));
+            makePie('ch-status', countBy(r, 'status'), 'lg-status', COLORS);
+            const monthMap = buildMonthMap(r);
             const months = Object.keys(monthMap).sort();
-            makeChart('ch-monthly', 'line', {
-                labels: months.map(labelMonth),
-                datasets: [{ label: 'Leave days', data: months.map(m => Math.round(monthMap[m] || 0)), borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 4 }]
-            }, 'lg-monthly', ['Leave days'], ['#378ADD']);
-        }
-
-        // ── REGION FILTERS (cascading: region → center → status) ─────
-        const rgSelRegions = new Set();
-        const rgSelCenters = new Set();
-        const rgSelStatuses = new Set();
-
-        const RG_STATUSES = [
-            { key: 'Approved', dot: '#1D9E75' },
-            { key: 'To be considered', dot: '#EF9F27' },
-            { key: 'Rejected', dot: '#E24B4A' },
-            { key: 'Preinformed', dot: '#378ADD' },
-        ];
-
-        function rgRenderRegionBtns() {
-            const regions = [...new Set(DATA.rows.map(x => x.region).filter(Boolean))].sort();
-            const el = document.getElementById('rg-region-btns');
-            if (!el) return;
-            el.innerHTML = regions.map(reg => {
-                const active = rgSelRegions.has(reg);
-                return `<div class="cpill${active ? ' active' : ''}" onclick="rgToggleRegion('${reg.replace(/'/g, "\\'")}')">${reg}</div>`;
-            }).join('');
-        }
-
-        function rgToggleRegion(reg) {
-            rgSelRegions.has(reg) ? rgSelRegions.delete(reg) : rgSelRegions.add(reg);
-            // Drop centers that no longer belong to any selected region
-            if (rgSelRegions.size > 0) {
-                const validCenters = new Set(
-                    DATA.rows.filter(x => rgSelRegions.has(x.region)).map(x => x.center).filter(Boolean)
-                );
-                [...rgSelCenters].forEach(c => { if (!validCenters.has(c)) rgSelCenters.delete(c); });
-            }
-            rgRenderRegionBtns();
-            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
-            rgRenderPills();
-            renderRegion();
-        }
-
-        function rgRenderCenterList(query = '') {
-            const base = rgSelRegions.size
-                ? DATA.rows.filter(x => rgSelRegions.has(x.region))
-                : DATA.rows;
-            const available = [...new Set(base.map(x => x.center).filter(Boolean))].sort();
-            const filtered = available.filter(c => c.toLowerCase().includes((query || '').toLowerCase()));
-
-            const hint = document.getElementById('rg-ctr-hint');
-            if (hint) hint.textContent = rgSelRegions.size ? `(${available.length} available)` : '(select a region first)';
-
-            document.getElementById('rg-ctr-list').innerHTML = filtered.length
-                ? filtered.map(c =>
-                    `<label style="display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:13px;cursor:pointer">
-                        <input type="checkbox" ${rgSelCenters.has(c) ? 'checked' : ''}
-                            onchange="rgToggleCenter('${c.replace(/'/g, "\\'")}', this.checked)" style="cursor:pointer">
-                        <span>${c.replace(' Vidyapeeth', '')}</span>
-                    </label>`).join('')
-                : `<div style="padding:10px;font-size:12px;color:var(--text3)">${rgSelRegions.size ? 'No centers match.' : 'Select a region above.'}</div>`;
-        }
-
-        function rgToggleCenter(name, checked) {
-            checked ? rgSelCenters.add(name) : rgSelCenters.delete(name);
-            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
-            rgRenderPills();
-            renderRegion();
-        }
-
-        function rgRenderPills() {
-            document.getElementById('rg-ctr-pills').innerHTML = [...rgSelCenters].map(c =>
-                `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;background:#E6F1FB;color:#185FA5;border-radius:20px;font-size:11px;font-weight:500">
-                    ${c.replace(' Vidyapeeth', '')}
-                    <span style="cursor:pointer;font-size:14px;line-height:1" onclick="rgToggleCenter('${c.replace(/'/g, "\\'")}', false)">×</span>
-                </span>`
-            ).join('');
-        }
-
-        function rgRenderStatusBtns() {
-            const el = document.getElementById('rg-status-btns');
-            if (!el) return;
-            el.innerHTML = RG_STATUSES.map(s => {
-                const active = rgSelStatuses.has(s.key);
-                return `<div class="cpill${active ? ' active' : ''}" style="display:inline-flex;align-items:center;gap:6px"
-                    onclick="rgToggleStatus('${s.key.replace(/'/g, "\\'")}')">
-                    <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0"></span>
-                    ${s.key}
-                </div>`;
-            }).join('');
-        }
-
-        function rgToggleStatus(key) {
-            rgSelStatuses.has(key) ? rgSelStatuses.delete(key) : rgSelStatuses.add(key);
-            rgRenderStatusBtns();
-            renderRegion();
-        }
-
-        function rgFilteredRows() {
-            let r = DATA.rows;
-            if (rgSelRegions.size) r = r.filter(x => rgSelRegions.has(x.region));
-            if (rgSelCenters.size) r = r.filter(x => rgSelCenters.has(x.center));
-            if (rgSelStatuses.size) r = r.filter(x => rgSelStatuses.has(x.status));
-            return r;
+            makeChart('ch-monthly', 'line', { labels: months.map(labelMonth), datasets: [{ label: 'Leave days', data: months.map(m => Math.round(monthMap[m] || 0)), borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 4 }] }, 'lg-monthly', ['Leave days'], ['#378ADD']);
         }
 
         // ── BY REGION ─────────────────────────────────────────────────
         function renderRegion() {
-            rgRenderRegionBtns();
-            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
-            rgRenderStatusBtns();
-            const r = rgFilteredRows();
+            let r = DATA.rows;
+            r = dateFilter(r, 'rg-from', 'rg-to');
+            const selReg = gv('rg-filter-region');
+            const selCens = multiSelected('rg-filter-centers');
+            const selSts = multiSelected('rg-filter-status');
+            if (selReg) r = r.filter(x => x.region === selReg);
+            if (selCens.length) r = r.filter(x => selCens.includes(x.center));
+            if (selSts.length) r = r.filter(x => selSts.includes(x.status));
 
-            const regions = [...new Set(r.map(x => x.region).filter(Boolean))];
-            const topReg = [...regions].sort((a, b) => sumDays(r, b, 'region') - sumDays(r, a, 'region'))[0] || '';
-
+            const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
+            const topReg = regions.slice().sort((a, b) => sumDays(r, b, 'region') - sumDays(r, a, 'region'))[0] || '';
             setKPIs('rg-kpis', [
-                { label: 'Regions', val: regions.length, sub: rgSelRegions.size ? 'Filtered' : 'Being tracked' },
-                { label: 'Highest days', val: Math.round(sumDays(r, topReg, 'region')), sub: topReg || '—', cls: 'coral' },
-                { label: 'Total submissions', val: r.length, sub: rgSelCenters.size ? rgSelCenters.size + ' centers' : 'All centers', cls: 'blue' },
+                { label: 'Regions', val: regions.length, sub: 'In view' },
+                { label: 'Highest days', val: Math.round(sumDays(r, topReg, 'region')), sub: topReg, cls: 'coral' },
+                { label: 'Total submissions', val: r.length, sub: 'Filtered', cls: 'blue' },
                 { label: 'Sudden rate', val: pct(r.filter(x => x.nature === 'Sudden').length, r.length), sub: 'Across selection', cls: 'amber' },
             ]);
 
             const ltypes = [...new Set(r.map(x => x.leaveType).filter(Boolean))];
             const lcolors = ltypes.map(l => COLORS[l] || '#888');
-            const stackDs = ltypes.map((lt, i) => ({
-                label: lt,
-                data: regions.map(reg => r.filter(x => x.region === reg && x.leaveType === lt)
-                    .reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)),
-                backgroundColor: lcolors[i], stack: 's'
-            }));
+            const stackDs = ltypes.map((lt, i) => ({ label: lt, data: regions.map(reg => r.filter(x => x.region === reg && x.leaveType === lt).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)), backgroundColor: lcolors[i], stack: 's' }));
             makeChart('ch-rstack', 'bar', { labels: regions, datasets: stackDs }, 'lg-rstack', ltypes, lcolors, { stacked: true });
 
             const nats = ['Preinformed', 'Exceptional', 'Sudden'];
             const natCols = [COLORS.Preinformed, COLORS.Exceptional, COLORS.Sudden];
-            const natDs = nats.map((n, i) => ({
-                label: n,
-                data: regions.map(reg => r.filter(x => x.region === reg && x.nature === n).length),
-                backgroundColor: natCols[i]
-            }));
+            const natDs = nats.map((n, i) => ({ label: n, data: regions.map(reg => r.filter(x => x.region === reg && x.nature === n).length), backgroundColor: natCols[i] }));
             makeChart('ch-rnat', 'bar', { labels: regions, datasets: natDs }, 'lg-rnat', nats, natCols);
+
+            document.getElementById('rg-count').textContent = '(' + r.length + ' records)';
+            document.getElementById('rg-tbody').innerHTML = r.slice(0, 300).map(row => `<tr>
+    <td><strong>${row.faculty || '—'}</strong></td>
+    <td style="color:var(--text3);font-size:11px">${row.empId || '—'}</td>
+    <td style="font-size:12px">${(row.center || '—').replace(' Vidyapeeth', '')}</td>
+    <td><span class="region-tag">${row.region || '—'}</span></td>
+    <td style="font-size:12px">${row.leaveType || '—'}</td>
+    <td><span class="badge b-${(row.nature || '').toLowerCase()}">${row.nature || '—'}</span></td>
+    <td style="font-weight:600">${row.actualDays || 1}</td>
+    <td style="font-size:11px">${row.fromDate || '—'}</td>
+    <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No records match filters.</td></tr>';
         }
 
         // ── BY CENTER ─────────────────────────────────────────────────
         function buildCenterPills() {
             const el = document.getElementById('ctr-pills');
             if (!selCenter && DATA.centers.length) selCenter = DATA.centers[0];
-            el.innerHTML = DATA.centers.map(c =>
-                `<div class="cpill${c === selCenter ? ' active' : ''}" onclick="pickCenter('${c.replace(/'/g, "\\'")}')">
-                    ${c.replace(' Vidyapeeth', '')}
-                </div>`
-            ).join('');
+            el.innerHTML = DATA.centers.map(c => `<div class="cpill${c === selCenter ? ' active' : ''}" onclick="pickCenter('${c.replace(/'/g, "\\'")}')">${c.replace(' Vidyapeeth', '')}</div>`).join('');
         }
-
         function pickCenter(name) { selCenter = name; buildCenterPills(); renderCenter(); }
 
         function renderCenter() {
-            const d = DATA.rows.filter(r => r.center === selCenter);
+            let d = DATA.rows.filter(r => r.center === selCenter);
+            d = dateFilter(d, 'ctr-from', 'ctr-to');
+            const nat = gv('ctr-nature'), st = gv('ctr-status');
+            if (nat) d = d.filter(r => r.nature === nat);
+            if (st) d = d.filter(r => r.status === st);
+
             const totalDays = d.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
             const unique = new Set(d.map(r => r.faculty)).size;
             const sudden = d.filter(r => r.nature === 'Sudden').length;
             const region = d[0]?.region || '';
-
             setKPIs('ctr-kpis', [
                 { label: 'Leave days', val: Math.round(totalDays), cls: 'blue' },
                 { label: 'Submissions', val: d.length },
@@ -982,57 +1065,21 @@
                 { label: 'Sudden', val: sudden, cls: 'coral' },
                 { label: 'Region', val: region, cls: 'purple' },
             ]);
-
             makePie('ch-ctype', countBy(d, 'leaveType'), 'lg-ctype', COLORS);
-
             const mmap = buildMonthMap(d);
             const mons = Object.keys(mmap).sort();
-            makeChart('ch-ctrend', 'bar', {
-                labels: mons.map(labelMonth),
-                datasets: [{ label: 'Leave days', data: mons.map(m => Math.round(mmap[m] || 0)), backgroundColor: '#378ADD99', borderColor: '#378ADD', borderWidth: 1, borderRadius: 3 }]
-            }, '', '', '');
-
+            makeChart('ch-ctrend', 'bar', { labels: mons.map(labelMonth), datasets: [{ label: 'Leave days', data: mons.map(m => Math.round(mmap[m] || 0)), backgroundColor: '#378ADD99', borderColor: '#378ADD', borderWidth: 1, borderRadius: 3 }] }, '', '', '');
             const facDays = {};
-            d.forEach(r => { facDays[r.faculty] = (facDays[r.faculty] || 0) + (parseFloat(r.actualDays) || 1); });
+            d.forEach(r => { facDays[r.faculty] = (facDays[r.faculty] || 0) + (parseFloat(r.actualDays) || 1) });
             const top10 = Object.entries(facDays).sort((a, b) => b[1] - a[1]).slice(0, 10);
-            makeChart('ch-cfac', 'bar', {
-                labels: top10.map(([n]) => n.split(' ').slice(0, 2).join(' ')),
-                datasets: [{ label: 'Days', data: top10.map(([, v]) => Math.round(v)), backgroundColor: '#7F77DD99', borderColor: '#534AB7', borderWidth: 1, borderRadius: 3 }]
-            }, '', '', '', { indexAxis: 'y' });
+            makeChart('ch-cfac', 'bar', { labels: top10.map(([n]) => n.split(' ').slice(0, 2).join(' ')), datasets: [{ label: 'Days', data: top10.map(([, v]) => Math.round(v)), backgroundColor: '#7F77DD99', borderColor: '#534AB7', borderWidth: 1, borderRadius: 3 }] }, '', '', '', { indexAxis: 'y' });
         }
 
         // ── FACULTY TABLE ─────────────────────────────────────────────
-        function populateFilters() {
-            const r = DATA.rows;
-            const fill = (id, vals) => {
-                const el = document.getElementById(id);
-                const cur = el.value;
-                el.innerHTML = '<option value="">All</option>';
-                [...new Set(vals.filter(Boolean))].sort().forEach(v => {
-                    const o = document.createElement('option');
-                    o.value = o.text = v;
-                    el.appendChild(o);
-                });
-                if (cur) el.value = cur;
-            };
-            fill('fl-region', r.map(x => x.region));
-            fill('fl-center', r.map(x => x.center));
-            fill('fl-ltype', r.map(x => x.leaveType));
-            fill('fl-nature', r.map(x => x.nature));
-            fill('fl-status', r.map(x => x.status));
-            renderFacultyTable();
-            rgRenderRegionBtns();
-            rgRenderCenterList();
-            rgRenderStatusBtns();
-        }
-
         function renderFacultyTable() {
-            const reg = document.getElementById('fl-region')?.value || '';
-            const cen = document.getElementById('fl-center')?.value || '';
-            const lt = document.getElementById('fl-ltype')?.value || '';
-            const nat = document.getElementById('fl-nature')?.value || '';
-            const st = document.getElementById('fl-status')?.value || '';
             let d = DATA.rows;
+            d = dateFilter(d, 'fl-from', 'fl-to');
+            const reg = gv('fl-region'), cen = gv('fl-center'), lt = gv('fl-ltype'), nat = gv('fl-nature'), st = gv('fl-status');
             if (reg) d = d.filter(r => r.region === reg);
             if (cen) d = d.filter(r => r.center === cen);
             if (lt) d = d.filter(r => r.leaveType === lt);
@@ -1040,18 +1087,18 @@
             if (st) d = d.filter(r => r.status === st);
             document.getElementById('fac-count').textContent = '(' + d.length + ' records)';
             document.getElementById('fac-tbody').innerHTML = d.slice(0, 200).map(r => `<tr>
-                <td><strong>${r.faculty || '—'}</strong></td>
-                <td style="color:var(--text3);font-size:11px">${r.empId || '—'}</td>
-                <td style="font-size:12px">${(r.center || '—').replace(' Vidyapeeth', '')}</td>
-                <td><span class="region-tag">${r.region || '—'}</span></td>
-                <td style="font-size:12px">${r.leaveType || '—'}</td>
-                <td style="font-size:12px">${r.duration || '—'}</td>
-                <td><span class="badge b-${(r.nature || '').toLowerCase()}">${r.nature || '—'}</span></td>
-                <td style="font-weight:600">${r.actualDays || 1}</td>
-                <td style="font-size:11px">${r.fromDate || '—'}</td>
-                <td style="font-size:11px">${r.tillDate || '—'}</td>
-                <td><span class="badge b-${statusClass(r.status)}">${r.status || '—'}</span></td>
-            </tr>`).join('') || '<tr><td colspan="11" class="empty">No records match the selected filters.</td></tr>';
+    <td><strong>${r.faculty || '—'}</strong></td>
+    <td style="color:var(--text3);font-size:11px">${r.empId || '—'}</td>
+    <td style="font-size:12px">${(r.center || '—').replace(' Vidyapeeth', '')}</td>
+    <td><span class="region-tag">${r.region || '—'}</span></td>
+    <td style="font-size:12px">${r.leaveType || '—'}</td>
+    <td style="font-size:12px">${r.duration || '—'}</td>
+    <td><span class="badge b-${(r.nature || '').toLowerCase()}">${r.nature || '—'}</span></td>
+    <td style="font-weight:600">${r.actualDays || 1}</td>
+    <td style="font-size:11px">${r.fromDate || '—'}</td>
+    <td style="font-size:11px">${r.tillDate || '—'}</td>
+    <td><span class="badge b-${statusClass(r.status)}">${r.status || '—'}</span></td>
+  </tr>`).join('') || '<tr><td colspan="11" class="empty">No records match filters.</td></tr>';
         }
 
         function statusClass(s) {
@@ -1059,22 +1106,25 @@
             const l = s.toLowerCase();
             if (l.includes('approv')) return 'approved';
             if (l.includes('reject')) return 'rejected';
+            if (l.includes('revok')) return 'rejected';
             if (l.includes('preinform')) return 'preinformed2';
             return 'considered';
         }
 
         // ── TRENDS ────────────────────────────────────────────────────
         function renderTrends() {
-            const r = DATA.rows;
-            const totalDays = r.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
+            let r = DATA.rows;
+            r = dateFilter(r, 'tr-from', 'tr-to');
+            const reg = gv('tr-region');
+            if (reg) r = r.filter(x => x.region === reg);
 
+            const totalDays = r.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
             setKPIs('tr-kpis', [
                 { label: 'Avg / center', val: Math.round(totalDays / Math.max(DATA.centers.length, 1)), sub: 'Leave days avg', cls: 'blue' },
                 { label: 'Full day ratio', val: pct(r.filter(x => x.duration === 'Full Day').length, r.length), sub: 'Vs half day' },
                 { label: 'Sudden rate', val: pct(r.filter(x => x.nature === 'Sudden').length, r.length), sub: 'Of all leaves', cls: 'coral' },
                 { label: 'Preinformed rate', val: pct(r.filter(x => x.nature === 'Preinformed').length, r.length), sub: 'Of all leaves', cls: 'green' },
             ]);
-
             const weeks = [], wl = [];
             for (let w = 0; w < 16; w++) {
                 const s = new Date('2026-01-01'); s.setDate(s.getDate() + w * 7);
@@ -1083,42 +1133,25 @@
                 weeks.push(r.filter(x => x.fromDate && x.fromDate >= sm && x.fromDate <= em).length);
                 wl.push('W' + (w + 1));
             }
-            makeChart('ch-wow', 'line', {
-                labels: wl,
-                datasets: [{ label: 'Submissions', data: weeks, borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 3 }]
-            }, '', '', '');
-
+            makeChart('ch-wow', 'line', { labels: wl, datasets: [{ label: 'Submissions', data: weeks, borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 3 }] }, '', '', '');
             makePie('ch-dur', countBy(r, 'duration'), 'lg-dur', COLORS);
-
             const cutoffs = [...new Set(r.map(x => x.cutoff).filter(Boolean))].sort().slice(0, 10);
-            makeChart('ch-cutoff', 'bar', {
-                labels: cutoffs.map(c => c.slice(5)),
-                datasets: [{ data: cutoffs.map(c => r.filter(x => x.cutoff === c).length), backgroundColor: '#1D9E7599', borderColor: '#0F6E56', borderWidth: 1, borderRadius: 3 }]
-            }, '', '', '', { rotateTicks: true });
-
+            makeChart('ch-cutoff', 'bar', { labels: cutoffs.map(c => c.slice(5)), datasets: [{ data: cutoffs.map(c => r.filter(x => x.cutoff === c).length), backgroundColor: '#1D9E7599', borderColor: '#0F6E56', borderWidth: 1, borderRadius: 3 }] }, '', '', '', { rotateTicks: true });
             const centers = DATA.centers;
             const cDays = centers.map(c => Math.round(r.filter(x => x.center === c).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)));
             const cRegs = centers.map(c => r.find(x => x.center === c)?.region || '');
-            const cCols = cRegs.map(reg => COLORS[reg] || '#888');
-            makeChart('ch-ccomp', 'bar', {
-                labels: centers.map(c => c.replace(' Vidyapeeth', '').split(' - ').pop()),
-                datasets: [{ label: 'Leave days', data: cDays, backgroundColor: cCols, borderRadius: 4 }]
-            }, '', '', '', { rotateTicks: true });
+            makeChart('ch-ccomp', 'bar', { labels: centers.map(c => c.replace(' Vidyapeeth', '').split(' - ').pop()), datasets: [{ label: 'Leave days', data: cDays, backgroundColor: cRegs.map(reg => COLORS[reg] || '#888'), borderRadius: 4 }] }, '', '', '', { rotateTicks: true });
         }
 
         // ── CHART HELPERS ─────────────────────────────────────────────
         function makeChart(id, type, cfg, lgEl, lgLabels, lgColors, extra = {}) {
             if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; }
-            const ctx = document.getElementById(id);
-            if (!ctx) return;
+            const ctx = document.getElementById(id); if (!ctx) return;
             if (lgEl && lgLabels && lgColors && document.getElementById(lgEl)) {
-                document.getElementById(lgEl).innerHTML = (lgLabels || []).map((l, i) =>
-                    `<span><span class="dot" style="background:${(lgColors || [])[i] || '#888'}"></span>${l}</span>`
-                ).join('');
+                document.getElementById(lgEl).innerHTML = (lgLabels || []).map((l, i) => `<span><span class="dot" style="background:${(lgColors || [])[i] || '#888'}"></span>${l}</span>`).join('');
             }
             const opts = {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                 scales: type === 'pie' || type === 'doughnut' ? {} : {
                     x: { stacked: extra.stacked || false, ticks: { font: { size: 11 }, maxRotation: extra.rotateTicks ? 45 : 0, autoSkip: false } },
                     y: { stacked: extra.stacked || false, ticks: { font: { size: 11 } } }
@@ -1127,62 +1160,26 @@
             if (extra.indexAxis) opts.indexAxis = extra.indexAxis;
             CHARTS[id] = new Chart(ctx, { type, data: cfg, options: opts });
         }
-
         function makePie(id, map, lgEl, colors) {
-            const labels = Object.keys(map);
-            const data = Object.values(map).map(v => Math.round(v));
+            const labels = Object.keys(map), data = Object.values(map).map(v => Math.round(v));
             const bgColors = labels.map(l => colors[l] || '#888');
             if (lgEl && document.getElementById(lgEl)) {
-                document.getElementById(lgEl).innerHTML = labels.map((l, i) =>
-                    `<span><span class="dot" style="background:${bgColors[i]}"></span>${l} (${data[i]})</span>`
-                ).join('');
+                document.getElementById(lgEl).innerHTML = labels.map((l, i) => `<span><span class="dot" style="background:${bgColors[i]}"></span>${l} (${data[i]})</span>`).join('');
             }
             makeChart(id, 'doughnut', { labels, datasets: [{ data, backgroundColor: bgColors, borderWidth: 2, borderColor: '#fff' }] }, '', '', '');
         }
-
         function makeBar(id, labels, data, lgEl, colors) {
             makeChart(id, 'bar', { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] }, lgEl, labels, colors);
         }
 
         // ── DATA UTILS ────────────────────────────────────────────────
-        function countBy(arr, key) {
-            const m = {};
-            arr.forEach(r => { const v = r[key] || 'Unknown'; m[v] = (m[v] || 0) + 1; });
-            return m;
-        }
-        function sumBy(arr, groupKey, valKey) {
-            const m = {};
-            arr.forEach(r => { const v = r[groupKey] || 'Unknown'; m[v] = (m[v] || 0) + (parseFloat(r[valKey]) || 1); });
-            return m;
-        }
-        function sumDays(arr, val, key = 'center') {
-            return arr.filter(r => r[key] === val).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
-        }
-        function buildMonthMap(arr) {
-            const m = {};
-            arr.forEach(r => {
-                if (!r.fromDate || r.fromDate.length < 7) return;
-                const k = r.fromDate.slice(0, 7);
-                m[k] = (m[k] || 0) + (parseFloat(r.actualDays) || 1);
-            });
-            return m;
-        }
-        function labelMonth(k) {
-            const [y, mo] = k.split('-');
-            return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(mo) - 1] + ' ' + y.slice(2);
-        }
+        function countBy(arr, key) { const m = {}; arr.forEach(r => { const v = r[key] || 'Unknown'; m[v] = (m[v] || 0) + 1 }); return m; }
+        function sumBy(arr, groupKey, valKey) { const m = {}; arr.forEach(r => { const v = r[groupKey] || 'Unknown'; m[v] = (m[v] || 0) + (parseFloat(r[valKey]) || 1) }); return m; }
+        function sumDays(arr, val, key = 'center') { return arr.filter(r => r[key] === val).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0); }
+        function buildMonthMap(arr) { const m = {}; arr.forEach(r => { if (!r.fromDate || r.fromDate.length < 7) return; const k = r.fromDate.slice(0, 7); m[k] = (m[k] || 0) + (parseFloat(r.actualDays) || 1) }); return m; }
+        function labelMonth(k) { const [y, m] = k.split('-'); return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(m) - 1] + ' ' + y.slice(2); }
         function pct(num, den) { return den ? Math.round(num / den * 100) + '%' : '0%'; }
-
-        function setKPIs(id, items) {
-            const el = document.getElementById(id); if (!el) return;
-            el.innerHTML = items.map(k =>
-                `<div class="kpi${k.cls ? ' ' + k.cls : ''}">
-                    <div class="kpi-label">${k.label}</div>
-                    <div class="kpi-val">${k.val}</div>
-                    <div class="kpi-sub">${k.sub || ''}</div>
-                </div>`
-            ).join('');
-        }
+        function setKPIs(id, items) { const el = document.getElementById(id); if (!el) return; el.innerHTML = items.map(k => `<div class="kpi${k.cls ? ' ' + k.cls : ''}"><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub || ''}</div></div>`).join(''); }
 
         // ── INIT ──────────────────────────────────────────────────────
         const savedUrl = localStorage.getItem('leaveApiUrl');
