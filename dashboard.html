@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Leave Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #f8f9fa;
+            --surface: #fff;
+            --surface2: #f1f3f5;
+            --text: #1a1a2e;
+            --text2: #555;
+            --text3: #888;
+            --border: #e0e0e0;
+            --radius: 10px;
+            --radius-lg: 14px;
+            --blue: #378ADD;
+            --green: #1D9E75;
+            --amber: #EF9F27;
+            --coral: #D85A30;
+            --purple: #7F77DD;
+            --pink: #D4537E;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100
+        }
+
+        header h1 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text)
+        }
+
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+            flex-shrink: 0
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .3
+            }
+        }
+
+        .sync-info {
+            font-size: 12px;
+            color: var(--text3);
+            margin-left: auto
+        }
+
+        .sync-info strong {
+            color: var(--text2)
+        }
+
+        .api-bar {
+            background: #fffbe6;
+            border-bottom: 1px solid #f0d080;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px
+        }
+
+        .api-bar input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px
+        }
+
+        .api-bar button {
+            padding: 6px 16px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500
+        }
+
+        .api-bar button:hover {
+            background: #185FA5
+        }
+
+        #api-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #eee;
+            white-space: nowrap
+        }
+
+        #api-status.ok {
+            background: #E1F5EE;
+            color: #0F6E56
+        }
+
+        #api-status.err {
+            background: #FCEBEB;
+            color: #A32D2D
+        }
+
+        main {
+            padding: 20px 24px;
+            max-width: 1400px;
+            margin: 0 auto
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px
+        }
+
+        .tab {
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text2);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all .15s
+        }
+
+        .tab.active {
+            color: var(--blue);
+            border-bottom-color: var(--blue)
+        }
+
+        .tab:hover {
+            color: var(--text)
+        }
+
+        .tab-pane {
+            display: none
+        }
+
+        .tab-pane.active {
+            display: block
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center
+        }
+
+        .filters label {
+            font-size: 12px;
+            color: var(--text2)
+        }
+
+        select {
+            padding: 5px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px
+        }
+
+        .kpi {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: 4px
+        }
+
+        .kpi-val {
+            font-size: 24px;
+            font-weight: 600
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: var(--text3);
+            margin-top: 2px
+        }
+
+        .kpi.blue .kpi-val {
+            color: var(--blue)
+        }
+
+        .kpi.green .kpi-val {
+            color: var(--green)
+        }
+
+        .kpi.amber .kpi-val {
+            color: var(--amber)
+        }
+
+        .kpi.coral .kpi-val {
+            color: var(--coral)
+        }
+
+        .kpi.purple .kpi-val {
+            color: var(--purple)
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px 18px
+        }
+
+        .card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 10px
+        }
+
+        .card.full {
+            grid-column: 1/-1
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text2)
+        }
+
+        .legend span {
+            display: flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px
+        }
+
+        thead th {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            white-space: nowrap
+        }
+
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle
+        }
+
+        tr:last-child td {
+            border: none
+        }
+
+        tr:hover td {
+            background: var(--surface2)
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap
+        }
+
+        .b-preinformed {
+            background: #E1F5EE;
+            color: #0F6E56
+        }
+
+        .b-sudden {
+            background: #FAECE7;
+            color: #993C1D
+        }
+
+        .b-exceptional {
+            background: #FAEEDA;
+            color: #854F0B
+        }
+
+        .b-approved {
+            background: #E1F5EE;
+            color: #0F6E56
+        }
+
+        .b-pending,
+        .b-considered {
+            background: #FAEEDA;
+            color: #854F0B
+        }
+
+        .b-rejected {
+            background: #FCEBEB;
+            color: #A32D2D
+        }
+
+        .b-preinformed2 {
+            background: #E6F1FB;
+            color: #185FA5
+        }
+
+        .center-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px
+        }
+
+        .cpill {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text2);
+            transition: all .15s;
+            font-weight: 500
+        }
+
+        .cpill.active {
+            background: #E6F1FB;
+            color: #185FA5;
+            border-color: #B5D4F4
+        }
+
+        .tbl-wrap {
+            overflow-x: auto;
+            max-height: 420px;
+            overflow-y: auto
+        }
+
+        .empty {
+            padding: 32px;
+            text-align: center;
+            color: var(--text3);
+            font-size: 13px
+        }
+
+        .refresh-btn {
+            margin-left: auto;
+            padding: 5px 14px;
+            font-size: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text2);
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .refresh-btn:hover {
+            background: var(--surface2);
+            color: var(--text)
+        }
+
+        .region-tag {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: var(--surface2);
+            color: var(--text2)
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="sync-dot" id="syncDot"></div>
+        <h1>Leave Analytics Dashboard</h1>
+        <button class="refresh-btn" onclick="loadData()">&#x21BB; Refresh</button>
+        <div class="sync-info">Last synced: <strong id="syncTime">—</strong></div>
+    </header>
+
+    <div class="api-bar">
+        <span style="font-weight:600;white-space:nowrap">Apps Script URL:</span>
+        <input type="text" id="apiUrl"
+            placeholder="Paste your deployed Web App URL here (https://script.google.com/macros/s/…/exec)" />
+        <button onclick="saveAndLoad()">Connect</button>
+        <span id="api-status">Not connected</span>
+    </div>
+
+    <main>
+        <div class="tabs">
+            <div class="tab active" data-tab="overview">Overview</div>
+            <div class="tab" data-tab="region">By region</div>
+            <div class="tab" data-tab="center">By center</div>
+            <div class="tab" data-tab="faculty">Faculty tracker</div>
+            <div class="tab" data-tab="trends">Trends</div>
+        </div>
+
+        <!-- OVERVIEW -->
+        <div id="pane-overview" class="tab-pane active">
+            <div class="kpi-grid" id="ov-kpis"></div>
+            <div class="chart-grid">
+                <div class="card">
+                    <h3>Leave type distribution</h3>
+                    <div class="legend" id="lg-type"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-type" role="img"
+                            aria-label="Leave type distribution pie chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Nature of leave</h3>
+                    <div class="legend" id="lg-nature"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-nature" role="img"
+                            aria-label="Nature of leave pie chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Leave days by region</h3>
+                    <div class="legend" id="lg-region"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-region" role="img"
+                            aria-label="Leave days by region"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Approval status</h3>
+                    <div class="legend" id="lg-status"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-status" role="img"
+                            aria-label="Approval status doughnut"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Monthly leave days — all centers</h3>
+                    <div class="legend" id="lg-monthly"></div>
+                    <div style="position:relative;height:240px"><canvas id="ch-monthly" role="img"
+                            aria-label="Monthly leave trend"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BY REGION -->
+        <div id="pane-region" class="tab-pane">
+            <div class="filters" id="rg-filters" style="align-items:flex-start;gap:16px;margin-bottom:18px">
+
+                <!-- Step 1: Regions -->
+                <div style="display:flex;flex-direction:column;gap:6px;min-width:180px">
+                    <label style="font-size:12px;color:var(--text2);font-weight:600">1 · Region</label>
+                    <div id="rg-region-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                </div>
+
+                <!-- Step 2: Centers (filtered by selected regions) -->
+                <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
+                    <label style="font-size:12px;color:var(--text2);font-weight:600">2 · Centers
+                        <span id="rg-ctr-hint" style="font-weight:400;color:var(--text3);margin-left:4px">(select a
+                            region first)</span>
+                    </label>
+                    <div
+                        style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden">
+                        <input id="rg-ctr-search" placeholder="Search centers…" oninput="rgRenderCenterList(this.value)"
+                            style="width:100%;padding:6px 10px;border:none;border-bottom:1px solid var(--border);font-size:13px;background:var(--surface2);outline:none" />
+                        <div id="rg-ctr-list" style="max-height:150px;overflow-y:auto"></div>
+                    </div>
+                    <div id="rg-ctr-pills" style="display:flex;flex-wrap:wrap;gap:5px;min-height:22px"></div>
+                </div>
+
+                <!-- Step 3: Approval status -->
+                <div style="display:flex;flex-direction:column;gap:6px">
+                    <label style="font-size:12px;color:var(--text2);font-weight:600">3 · Approval status</label>
+                    <div id="rg-status-btns" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                </div>
+
+                <button class="refresh-btn"
+                    onclick="rgSelRegions.clear();rgSelCenters.clear();rgSelStatuses.clear();rgRenderRegionBtns();rgRenderCenterList();rgRenderStatusBtns();renderRegion()"
+                    style="margin-left:auto;margin-top:20px">&#x2715; Clear all</button>
+            </div>
+
+            <div class="kpi-grid" id="rg-kpis"></div>
+            <div class="chart-grid">
+                <div class="card full">
+                    <h3>Leave days per region — stacked by type</h3>
+                    <div class="legend" id="lg-rstack"></div>
+                    <div style="position:relative;height:280px"><canvas id="ch-rstack" role="img"
+                            aria-label="Region stacked bar"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Preinformed vs sudden vs exceptional by region</h3>
+                    <div class="legend" id="lg-rnat"></div>
+                    <div style="position:relative;height:240px"><canvas id="ch-rnat" role="img"
+                            aria-label="Nature by region grouped bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BY CENTER -->
+        <div id="pane-center" class="tab-pane">
+            <div class="center-pills" id="ctr-pills"></div>
+            <div class="kpi-grid" id="ctr-kpis"></div>
+            <div class="chart-grid">
+                <div class="card">
+                    <h3>Leave types</h3>
+                    <div class="legend" id="lg-ctype"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-ctype" role="img"
+                            aria-label="Center leave type pie"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Monthly trend</h3>
+                    <div style="position:relative;height:220px"><canvas id="ch-ctrend" role="img"
+                            aria-label="Center monthly bar"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Top 10 faculty by leave days</h3>
+                    <div style="position:relative;height:280px"><canvas id="ch-cfac" role="img"
+                            aria-label="Faculty leave horizontal bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FACULTY TRACKER -->
+        <div id="pane-faculty" class="tab-pane">
+            <div class="filters">
+                <label>Region</label>
+                <select id="fl-region" onchange="renderFacultyTable()">
+                    <option value="">All</option>
+                </select>
+                <label>Center</label>
+                <select id="fl-center" onchange="renderFacultyTable()">
+                    <option value="">All</option>
+                </select>
+                <label>Leave type</label>
+                <select id="fl-ltype" onchange="renderFacultyTable()">
+                    <option value="">All</option>
+                </select>
+                <label>Nature</label>
+                <select id="fl-nature" onchange="renderFacultyTable()">
+                    <option value="">All</option>
+                </select>
+                <label>Status</label>
+                <select id="fl-status" onchange="renderFacultyTable()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="card full">
+                <h3>Faculty leave records <span id="fac-count"
+                        style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Faculty</th>
+                                <th>Emp ID</th>
+                                <th>Center</th>
+                                <th>Region</th>
+                                <th>Leave type</th>
+                                <th>Duration</th>
+                                <th>Nature</th>
+                                <th>Days</th>
+                                <th>From</th>
+                                <th>Till</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fac-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRENDS -->
+        <div id="pane-trends" class="tab-pane">
+            <div class="kpi-grid" id="tr-kpis"></div>
+            <div class="chart-grid">
+                <div class="card full">
+                    <h3>Week-on-week leave submissions</h3>
+                    <div style="position:relative;height:220px"><canvas id="ch-wow" role="img"
+                            aria-label="Week over week submissions"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Full day vs half day</h3>
+                    <div class="legend" id="lg-dur"></div>
+                    <div style="position:relative;height:200px"><canvas id="ch-dur" role="img"
+                            aria-label="Duration split doughnut"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Cut-off thursday distribution</h3>
+                    <div style="position:relative;height:200px"><canvas id="ch-cutoff" role="img"
+                            aria-label="Cutoff distribution bar"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Total leave days — center comparison</h3>
+                    <div style="position:relative;height:260px"><canvas id="ch-ccomp" role="img"
+                            aria-label="Center comparison bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const COLORS = {
+            'Personal Leave': '#378ADD', 'Female Care Leave': '#D4537E', 'Birthday Leave': '#EF9F27',
+            'Sick Leave': '#E24B4A', 'Emergency Leave': '#D85A30', 'Paternity Leave': '#1D9E75',
+            'Personal Leave Full Day': '#7F77DD', 'Other': '#888780',
+            'Preinformed': '#1D9E75', 'Exceptional': '#EF9F27', 'Sudden': '#E24B4A',
+            'Delhi + HR': '#378ADD', 'East': '#D4537E', 'UP': '#1D9E75', 'NCR + UK': '#EF9F27',
+            'Full Day': '#378ADD', 'Half Day': '#D4537E',
+            'Approved': '#1D9E75', 'To be considered': '#EF9F27', 'Rejected': '#E24B4A'
+        };
+        const CHARTS = {};
+        let DATA = { rows: [], summary: null, centers: [] };
+        let selCenter = '';
+
+        // ── TABS ──────────────────────────────────────────────────────
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                const pane = document.getElementById('pane-' + t.dataset.tab);
+                if (pane) pane.classList.add('active');
+                renderCurrentTab(t.dataset.tab);
+            });
+        });
+
+        // ── API CONNECTION ────────────────────────────────────────────
+        function saveAndLoad() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) { alert('Please paste your Web App URL.'); return; }
+            localStorage.setItem('leaveApiUrl', url);
+            loadData();
+        }
+
+        function getApiUrl() {
+            return localStorage.getItem('leaveApiUrl') || document.getElementById('apiUrl').value.trim();
+        }
+
+        let _loadId = 0;
+
+        async function loadData() {
+            const url = getApiUrl();
+            if (!url) { setStatus('err', 'No URL — paste your Web App URL above'); return; }
+            document.getElementById('apiUrl').value = url;
+            setStatus('', '🔗 Connecting…');
+            setSyncDot(false);
+
+            const myId = ++_loadId;
+            DATA = { rows: [], summary: null, centers: [] };
+
+            try {
+                const centRes = await fetch(url + '?action=centers').then(r => r.json());
+                if (myId !== _loadId) return;
+                if (!centRes.ok) throw new Error(centRes.error || 'Could not load center list');
+
+                const regions = [...new Set(centRes.data.map(c => c.region).filter(r => r && r !== '#N/A'))].sort();
+                const totalRegions = regions.length;
+                setStatus('', `Loading region 0 / ${totalRegions}…`);
+
+                let loaded = 0;
+                for (const region of regions) {
+                    if (myId !== _loadId) return;
+                    try {
+                        const res = await fetch(url + '?action=all&region=' + encodeURIComponent(region)).then(r => r.json());
+                        if (myId !== _loadId) return;
+                        if (res.ok && res.data && res.data.rows) {
+                            res.data.rows.forEach(r => DATA.rows.push(r));
+                            DATA.centers = [...new Set(DATA.rows.map(r => r.center).filter(Boolean))];
+                        }
+                    } catch (e) { /* skip failed region */ }
+
+                    loaded++;
+                    setStatus('', `Loading region ${loaded} / ${totalRegions} — ${DATA.rows.length} records so far…`);
+
+                    if (DATA.rows.length > 0) {
+                        populateFilters();
+                        renderCurrentTab('overview');
+                        if (loaded === 1) setSyncDot(true);
+                    }
+                }
+
+                if (myId !== _loadId) return;
+
+                setStatus('ok', `Connected — ${DATA.rows.length} records across ${DATA.centers.length} centers`);
+                setSyncDot(true);
+                document.getElementById('syncTime').textContent = new Date().toLocaleString('en-IN');
+                populateFilters();
+                renderCurrentTab('overview');
+
+            } catch (e) {
+                if (myId !== _loadId) return;
+                setStatus('err', 'Error: ' + e.message);
+                setSyncDot(false);
+            }
+        }
+
+        function setStatus(cls, msg) {
+            const el = document.getElementById('api-status');
+            el.className = cls === 'err' ? 'err' : (cls === 'ok' ? 'ok' : '');
+            el.textContent = msg;
+        }
+        function setSyncDot(on) {
+            document.getElementById('syncDot').style.background = on ? '#1D9E75' : '#E24B4A';
+        }
+
+        // ── RENDER ROUTER ─────────────────────────────────────────────
+        function renderCurrentTab(name) {
+            if (!DATA.rows.length) return;
+            if (name === 'overview') renderOverview();
+            else if (name === 'region') renderRegion();
+            else if (name === 'center') { buildCenterPills(); renderCenter(); }
+            else if (name === 'faculty') renderFacultyTable();
+            else if (name === 'trends') renderTrends();
+        }
+
+        // ── OVERVIEW ──────────────────────────────────────────────────
+        function renderOverview() {
+            const s = DATA.summary;
+            const r = DATA.rows;
+            const uniqueFac = s ? s.uniqueFaculty : new Set(r.map(x => x.faculty)).size;
+            const totalDays = s ? s.totalDays : r.reduce((a, x) => a + (parseFloat(x.actualDays) || 1), 0);
+            const sudden = r.filter(x => x.nature === 'Sudden').length;
+            const pending = r.filter(x => x.status === 'To be considered').length;
+
+            setKPIs('ov-kpis', [
+                { label: 'Total leave days', val: Math.round(totalDays), sub: 'All centers', cls: 'blue' },
+                { label: 'Total submissions', val: r.length, sub: 'Across ' + DATA.centers.length + ' centers' },
+                { label: 'Unique faculty', val: uniqueFac, sub: 'At least one leave' },
+                { label: 'Sudden leaves', val: sudden, sub: pct(sudden, r.length) + ' of total', cls: 'coral' },
+                { label: 'Avg days/submission', val: (totalDays / Math.max(r.length, 1)).toFixed(1), sub: 'Leave days avg', cls: 'purple' },
+                { label: 'Pending approval', val: pending, sub: 'To be considered', cls: 'amber' },
+            ]);
+
+            const typeMap = s ? s.byType : countBy(r, 'leaveType');
+            const natMap = s ? s.byNature : countBy(r, 'nature');
+            const regMap = s ? s.byRegion : sumBy(r, 'region', 'actualDays');
+            const statMap = s ? s.byStatus : countBy(r, 'status');
+
+            makePie('ch-type', typeMap, 'lg-type', COLORS);
+            makePie('ch-nature', natMap, 'lg-nature', COLORS);
+            makeBar('ch-region', Object.keys(regMap), Object.values(regMap), 'lg-region', Object.keys(regMap).map(k => COLORS[k] || '#888'), 'Leave days');
+            makePie('ch-status', statMap, 'lg-status', COLORS);
+
+            const monthMap = s ? s.byMonth : buildMonthMap(r);
+            const months = Object.keys(monthMap).sort();
+            makeChart('ch-monthly', 'line', {
+                labels: months.map(labelMonth),
+                datasets: [{ label: 'Leave days', data: months.map(m => Math.round(monthMap[m] || 0)), borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 4 }]
+            }, 'lg-monthly', ['Leave days'], ['#378ADD']);
+        }
+
+        // ── REGION FILTERS (cascading: region → center → status) ─────
+        const rgSelRegions = new Set();
+        const rgSelCenters = new Set();
+        const rgSelStatuses = new Set();
+
+        const RG_STATUSES = [
+            { key: 'Approved', dot: '#1D9E75' },
+            { key: 'To be considered', dot: '#EF9F27' },
+            { key: 'Rejected', dot: '#E24B4A' },
+            { key: 'Preinformed', dot: '#378ADD' },
+        ];
+
+        function rgRenderRegionBtns() {
+            const regions = [...new Set(DATA.rows.map(x => x.region).filter(Boolean))].sort();
+            const el = document.getElementById('rg-region-btns');
+            if (!el) return;
+            el.innerHTML = regions.map(reg => {
+                const active = rgSelRegions.has(reg);
+                return `<div class="cpill${active ? ' active' : ''}" onclick="rgToggleRegion('${reg.replace(/'/g, "\\'")}')">${reg}</div>`;
+            }).join('');
+        }
+
+        function rgToggleRegion(reg) {
+            rgSelRegions.has(reg) ? rgSelRegions.delete(reg) : rgSelRegions.add(reg);
+            // Drop centers that no longer belong to any selected region
+            if (rgSelRegions.size > 0) {
+                const validCenters = new Set(
+                    DATA.rows.filter(x => rgSelRegions.has(x.region)).map(x => x.center).filter(Boolean)
+                );
+                [...rgSelCenters].forEach(c => { if (!validCenters.has(c)) rgSelCenters.delete(c); });
+            }
+            rgRenderRegionBtns();
+            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
+            rgRenderPills();
+            renderRegion();
+        }
+
+        function rgRenderCenterList(query = '') {
+            const base = rgSelRegions.size
+                ? DATA.rows.filter(x => rgSelRegions.has(x.region))
+                : DATA.rows;
+            const available = [...new Set(base.map(x => x.center).filter(Boolean))].sort();
+            const filtered = available.filter(c => c.toLowerCase().includes((query || '').toLowerCase()));
+
+            const hint = document.getElementById('rg-ctr-hint');
+            if (hint) hint.textContent = rgSelRegions.size ? `(${available.length} available)` : '(select a region first)';
+
+            document.getElementById('rg-ctr-list').innerHTML = filtered.length
+                ? filtered.map(c =>
+                    `<label style="display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:13px;cursor:pointer">
+                        <input type="checkbox" ${rgSelCenters.has(c) ? 'checked' : ''}
+                            onchange="rgToggleCenter('${c.replace(/'/g, "\\'")}', this.checked)" style="cursor:pointer">
+                        <span>${c.replace(' Vidyapeeth', '')}</span>
+                    </label>`).join('')
+                : `<div style="padding:10px;font-size:12px;color:var(--text3)">${rgSelRegions.size ? 'No centers match.' : 'Select a region above.'}</div>`;
+        }
+
+        function rgToggleCenter(name, checked) {
+            checked ? rgSelCenters.add(name) : rgSelCenters.delete(name);
+            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
+            rgRenderPills();
+            renderRegion();
+        }
+
+        function rgRenderPills() {
+            document.getElementById('rg-ctr-pills').innerHTML = [...rgSelCenters].map(c =>
+                `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;background:#E6F1FB;color:#185FA5;border-radius:20px;font-size:11px;font-weight:500">
+                    ${c.replace(' Vidyapeeth', '')}
+                    <span style="cursor:pointer;font-size:14px;line-height:1" onclick="rgToggleCenter('${c.replace(/'/g, "\\'")}', false)">×</span>
+                </span>`
+            ).join('');
+        }
+
+        function rgRenderStatusBtns() {
+            const el = document.getElementById('rg-status-btns');
+            if (!el) return;
+            el.innerHTML = RG_STATUSES.map(s => {
+                const active = rgSelStatuses.has(s.key);
+                return `<div class="cpill${active ? ' active' : ''}" style="display:inline-flex;align-items:center;gap:6px"
+                    onclick="rgToggleStatus('${s.key.replace(/'/g, "\\'")}')">
+                    <span style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0"></span>
+                    ${s.key}
+                </div>`;
+            }).join('');
+        }
+
+        function rgToggleStatus(key) {
+            rgSelStatuses.has(key) ? rgSelStatuses.delete(key) : rgSelStatuses.add(key);
+            rgRenderStatusBtns();
+            renderRegion();
+        }
+
+        function rgFilteredRows() {
+            let r = DATA.rows;
+            if (rgSelRegions.size) r = r.filter(x => rgSelRegions.has(x.region));
+            if (rgSelCenters.size) r = r.filter(x => rgSelCenters.has(x.center));
+            if (rgSelStatuses.size) r = r.filter(x => rgSelStatuses.has(x.status));
+            return r;
+        }
+
+        // ── BY REGION ─────────────────────────────────────────────────
+        function renderRegion() {
+            rgRenderRegionBtns();
+            rgRenderCenterList(document.getElementById('rg-ctr-search')?.value || '');
+            rgRenderStatusBtns();
+            const r = rgFilteredRows();
+
+            const regions = [...new Set(r.map(x => x.region).filter(Boolean))];
+            const topReg = [...regions].sort((a, b) => sumDays(r, b, 'region') - sumDays(r, a, 'region'))[0] || '';
+
+            setKPIs('rg-kpis', [
+                { label: 'Regions', val: regions.length, sub: rgSelRegions.size ? 'Filtered' : 'Being tracked' },
+                { label: 'Highest days', val: Math.round(sumDays(r, topReg, 'region')), sub: topReg || '—', cls: 'coral' },
+                { label: 'Total submissions', val: r.length, sub: rgSelCenters.size ? rgSelCenters.size + ' centers' : 'All centers', cls: 'blue' },
+                { label: 'Sudden rate', val: pct(r.filter(x => x.nature === 'Sudden').length, r.length), sub: 'Across selection', cls: 'amber' },
+            ]);
+
+            const ltypes = [...new Set(r.map(x => x.leaveType).filter(Boolean))];
+            const lcolors = ltypes.map(l => COLORS[l] || '#888');
+            const stackDs = ltypes.map((lt, i) => ({
+                label: lt,
+                data: regions.map(reg => r.filter(x => x.region === reg && x.leaveType === lt)
+                    .reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)),
+                backgroundColor: lcolors[i], stack: 's'
+            }));
+            makeChart('ch-rstack', 'bar', { labels: regions, datasets: stackDs }, 'lg-rstack', ltypes, lcolors, { stacked: true });
+
+            const nats = ['Preinformed', 'Exceptional', 'Sudden'];
+            const natCols = [COLORS.Preinformed, COLORS.Exceptional, COLORS.Sudden];
+            const natDs = nats.map((n, i) => ({
+                label: n,
+                data: regions.map(reg => r.filter(x => x.region === reg && x.nature === n).length),
+                backgroundColor: natCols[i]
+            }));
+            makeChart('ch-rnat', 'bar', { labels: regions, datasets: natDs }, 'lg-rnat', nats, natCols);
+        }
+
+        // ── BY CENTER ─────────────────────────────────────────────────
+        function buildCenterPills() {
+            const el = document.getElementById('ctr-pills');
+            if (!selCenter && DATA.centers.length) selCenter = DATA.centers[0];
+            el.innerHTML = DATA.centers.map(c =>
+                `<div class="cpill${c === selCenter ? ' active' : ''}" onclick="pickCenter('${c.replace(/'/g, "\\'")}')">
+                    ${c.replace(' Vidyapeeth', '')}
+                </div>`
+            ).join('');
+        }
+
+        function pickCenter(name) { selCenter = name; buildCenterPills(); renderCenter(); }
+
+        function renderCenter() {
+            const d = DATA.rows.filter(r => r.center === selCenter);
+            const totalDays = d.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+            const unique = new Set(d.map(r => r.faculty)).size;
+            const sudden = d.filter(r => r.nature === 'Sudden').length;
+            const region = d[0]?.region || '';
+
+            setKPIs('ctr-kpis', [
+                { label: 'Leave days', val: Math.round(totalDays), cls: 'blue' },
+                { label: 'Submissions', val: d.length },
+                { label: 'Faculty', val: unique },
+                { label: 'Sudden', val: sudden, cls: 'coral' },
+                { label: 'Region', val: region, cls: 'purple' },
+            ]);
+
+            makePie('ch-ctype', countBy(d, 'leaveType'), 'lg-ctype', COLORS);
+
+            const mmap = buildMonthMap(d);
+            const mons = Object.keys(mmap).sort();
+            makeChart('ch-ctrend', 'bar', {
+                labels: mons.map(labelMonth),
+                datasets: [{ label: 'Leave days', data: mons.map(m => Math.round(mmap[m] || 0)), backgroundColor: '#378ADD99', borderColor: '#378ADD', borderWidth: 1, borderRadius: 3 }]
+            }, '', '', '');
+
+            const facDays = {};
+            d.forEach(r => { facDays[r.faculty] = (facDays[r.faculty] || 0) + (parseFloat(r.actualDays) || 1); });
+            const top10 = Object.entries(facDays).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            makeChart('ch-cfac', 'bar', {
+                labels: top10.map(([n]) => n.split(' ').slice(0, 2).join(' ')),
+                datasets: [{ label: 'Days', data: top10.map(([, v]) => Math.round(v)), backgroundColor: '#7F77DD99', borderColor: '#534AB7', borderWidth: 1, borderRadius: 3 }]
+            }, '', '', '', { indexAxis: 'y' });
+        }
+
+        // ── FACULTY TABLE ─────────────────────────────────────────────
+        function populateFilters() {
+            const r = DATA.rows;
+            const fill = (id, vals) => {
+                const el = document.getElementById(id);
+                const cur = el.value;
+                el.innerHTML = '<option value="">All</option>';
+                [...new Set(vals.filter(Boolean))].sort().forEach(v => {
+                    const o = document.createElement('option');
+                    o.value = o.text = v;
+                    el.appendChild(o);
+                });
+                if (cur) el.value = cur;
+            };
+            fill('fl-region', r.map(x => x.region));
+            fill('fl-center', r.map(x => x.center));
+            fill('fl-ltype', r.map(x => x.leaveType));
+            fill('fl-nature', r.map(x => x.nature));
+            fill('fl-status', r.map(x => x.status));
+            renderFacultyTable();
+            rgRenderRegionBtns();
+            rgRenderCenterList();
+            rgRenderStatusBtns();
+        }
+
+        function renderFacultyTable() {
+            const reg = document.getElementById('fl-region')?.value || '';
+            const cen = document.getElementById('fl-center')?.value || '';
+            const lt = document.getElementById('fl-ltype')?.value || '';
+            const nat = document.getElementById('fl-nature')?.value || '';
+            const st = document.getElementById('fl-status')?.value || '';
+            let d = DATA.rows;
+            if (reg) d = d.filter(r => r.region === reg);
+            if (cen) d = d.filter(r => r.center === cen);
+            if (lt) d = d.filter(r => r.leaveType === lt);
+            if (nat) d = d.filter(r => r.nature === nat);
+            if (st) d = d.filter(r => r.status === st);
+            document.getElementById('fac-count').textContent = '(' + d.length + ' records)';
+            document.getElementById('fac-tbody').innerHTML = d.slice(0, 200).map(r => `<tr>
+                <td><strong>${r.faculty || '—'}</strong></td>
+                <td style="color:var(--text3);font-size:11px">${r.empId || '—'}</td>
+                <td style="font-size:12px">${(r.center || '—').replace(' Vidyapeeth', '')}</td>
+                <td><span class="region-tag">${r.region || '—'}</span></td>
+                <td style="font-size:12px">${r.leaveType || '—'}</td>
+                <td style="font-size:12px">${r.duration || '—'}</td>
+                <td><span class="badge b-${(r.nature || '').toLowerCase()}">${r.nature || '—'}</span></td>
+                <td style="font-weight:600">${r.actualDays || 1}</td>
+                <td style="font-size:11px">${r.fromDate || '—'}</td>
+                <td style="font-size:11px">${r.tillDate || '—'}</td>
+                <td><span class="badge b-${statusClass(r.status)}">${r.status || '—'}</span></td>
+            </tr>`).join('') || '<tr><td colspan="11" class="empty">No records match the selected filters.</td></tr>';
+        }
+
+        function statusClass(s) {
+            if (!s) return 'pending';
+            const l = s.toLowerCase();
+            if (l.includes('approv')) return 'approved';
+            if (l.includes('reject')) return 'rejected';
+            if (l.includes('preinform')) return 'preinformed2';
+            return 'considered';
+        }
+
+        // ── TRENDS ────────────────────────────────────────────────────
+        function renderTrends() {
+            const r = DATA.rows;
+            const totalDays = r.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
+
+            setKPIs('tr-kpis', [
+                { label: 'Avg / center', val: Math.round(totalDays / Math.max(DATA.centers.length, 1)), sub: 'Leave days avg', cls: 'blue' },
+                { label: 'Full day ratio', val: pct(r.filter(x => x.duration === 'Full Day').length, r.length), sub: 'Vs half day' },
+                { label: 'Sudden rate', val: pct(r.filter(x => x.nature === 'Sudden').length, r.length), sub: 'Of all leaves', cls: 'coral' },
+                { label: 'Preinformed rate', val: pct(r.filter(x => x.nature === 'Preinformed').length, r.length), sub: 'Of all leaves', cls: 'green' },
+            ]);
+
+            const weeks = [], wl = [];
+            for (let w = 0; w < 16; w++) {
+                const s = new Date('2026-01-01'); s.setDate(s.getDate() + w * 7);
+                const e = new Date(s); e.setDate(e.getDate() + 6);
+                const sm = s.toISOString().slice(0, 10), em = e.toISOString().slice(0, 10);
+                weeks.push(r.filter(x => x.fromDate && x.fromDate >= sm && x.fromDate <= em).length);
+                wl.push('W' + (w + 1));
+            }
+            makeChart('ch-wow', 'line', {
+                labels: wl,
+                datasets: [{ label: 'Submissions', data: weeks, borderColor: '#378ADD', backgroundColor: '#378ADD22', tension: .4, fill: true, pointRadius: 3 }]
+            }, '', '', '');
+
+            makePie('ch-dur', countBy(r, 'duration'), 'lg-dur', COLORS);
+
+            const cutoffs = [...new Set(r.map(x => x.cutoff).filter(Boolean))].sort().slice(0, 10);
+            makeChart('ch-cutoff', 'bar', {
+                labels: cutoffs.map(c => c.slice(5)),
+                datasets: [{ data: cutoffs.map(c => r.filter(x => x.cutoff === c).length), backgroundColor: '#1D9E7599', borderColor: '#0F6E56', borderWidth: 1, borderRadius: 3 }]
+            }, '', '', '', { rotateTicks: true });
+
+            const centers = DATA.centers;
+            const cDays = centers.map(c => Math.round(r.filter(x => x.center === c).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0)));
+            const cRegs = centers.map(c => r.find(x => x.center === c)?.region || '');
+            const cCols = cRegs.map(reg => COLORS[reg] || '#888');
+            makeChart('ch-ccomp', 'bar', {
+                labels: centers.map(c => c.replace(' Vidyapeeth', '').split(' - ').pop()),
+                datasets: [{ label: 'Leave days', data: cDays, backgroundColor: cCols, borderRadius: 4 }]
+            }, '', '', '', { rotateTicks: true });
+        }
+
+        // ── CHART HELPERS ─────────────────────────────────────────────
+        function makeChart(id, type, cfg, lgEl, lgLabels, lgColors, extra = {}) {
+            if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; }
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            if (lgEl && lgLabels && lgColors && document.getElementById(lgEl)) {
+                document.getElementById(lgEl).innerHTML = (lgLabels || []).map((l, i) =>
+                    `<span><span class="dot" style="background:${(lgColors || [])[i] || '#888'}"></span>${l}</span>`
+                ).join('');
+            }
+            const opts = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: type === 'pie' || type === 'doughnut' ? {} : {
+                    x: { stacked: extra.stacked || false, ticks: { font: { size: 11 }, maxRotation: extra.rotateTicks ? 45 : 0, autoSkip: false } },
+                    y: { stacked: extra.stacked || false, ticks: { font: { size: 11 } } }
+                }
+            };
+            if (extra.indexAxis) opts.indexAxis = extra.indexAxis;
+            CHARTS[id] = new Chart(ctx, { type, data: cfg, options: opts });
+        }
+
+        function makePie(id, map, lgEl, colors) {
+            const labels = Object.keys(map);
+            const data = Object.values(map).map(v => Math.round(v));
+            const bgColors = labels.map(l => colors[l] || '#888');
+            if (lgEl && document.getElementById(lgEl)) {
+                document.getElementById(lgEl).innerHTML = labels.map((l, i) =>
+                    `<span><span class="dot" style="background:${bgColors[i]}"></span>${l} (${data[i]})</span>`
+                ).join('');
+            }
+            makeChart(id, 'doughnut', { labels, datasets: [{ data, backgroundColor: bgColors, borderWidth: 2, borderColor: '#fff' }] }, '', '', '');
+        }
+
+        function makeBar(id, labels, data, lgEl, colors) {
+            makeChart(id, 'bar', { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] }, lgEl, labels, colors);
+        }
+
+        // ── DATA UTILS ────────────────────────────────────────────────
+        function countBy(arr, key) {
+            const m = {};
+            arr.forEach(r => { const v = r[key] || 'Unknown'; m[v] = (m[v] || 0) + 1; });
+            return m;
+        }
+        function sumBy(arr, groupKey, valKey) {
+            const m = {};
+            arr.forEach(r => { const v = r[groupKey] || 'Unknown'; m[v] = (m[v] || 0) + (parseFloat(r[valKey]) || 1); });
+            return m;
+        }
+        function sumDays(arr, val, key = 'center') {
+            return arr.filter(r => r[key] === val).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+        }
+        function buildMonthMap(arr) {
+            const m = {};
+            arr.forEach(r => {
+                if (!r.fromDate || r.fromDate.length < 7) return;
+                const k = r.fromDate.slice(0, 7);
+                m[k] = (m[k] || 0) + (parseFloat(r.actualDays) || 1);
+            });
+            return m;
+        }
+        function labelMonth(k) {
+            const [y, mo] = k.split('-');
+            return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(mo) - 1] + ' ' + y.slice(2);
+        }
+        function pct(num, den) { return den ? Math.round(num / den * 100) + '%' : '0%'; }
+
+        function setKPIs(id, items) {
+            const el = document.getElementById(id); if (!el) return;
+            el.innerHTML = items.map(k =>
+                `<div class="kpi${k.cls ? ' ' + k.cls : ''}">
+                    <div class="kpi-label">${k.label}</div>
+                    <div class="kpi-val">${k.val}</div>
+                    <div class="kpi-sub">${k.sub || ''}</div>
+                </div>`
+            ).join('');
+        }
+
+        // ── INIT ──────────────────────────────────────────────────────
+        const savedUrl = localStorage.getItem('leaveApiUrl');
+        if (savedUrl) { document.getElementById('apiUrl').value = savedUrl; loadData(); }
+    </script>
+</body>
+
+</html>
