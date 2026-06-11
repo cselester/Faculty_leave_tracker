@@ -267,10 +267,61 @@
         </div>
         <div class="kpi-grid" id="tr-kpis"></div>
         <div class="chart-grid">
-            <div class="card full"><h3>Week-on-week leave submissions</h3><div style="position:relative;height:220px"><canvas id="ch-wow"></canvas></div></div>
-            <div class="card"><h3>Full day vs half day</h3><div class="legend" id="lg-dur"></div><div style="position:relative;height:200px"><canvas id="ch-dur"></canvas></div></div>
-            <div class="card"><h3>Cut-off thursday distribution</h3><div style="position:relative;height:200px"><canvas id="ch-cutoff"></canvas></div></div>
-            <div class="card full"><h3>Total leave days — center comparison</h3><div style="position:relative;height:260px"><canvas id="ch-ccomp"></canvas></div></div>
+            <!-- Week-on-week: stacked by region so each region is visible -->
+            <div class="card full">
+                <h3>Week-on-week leave submissions <span style="font-size:11px;font-weight:400;color:var(--text3)">— stacked by region</span></h3>
+                <div class="legend" id="lg-wow"></div>
+                <div style="position:relative;height:260px"><canvas id="ch-wow"></canvas></div>
+            </div>
+            <!-- Monthly leave days stacked by nature (Preinformed / Sudden / Exceptional) -->
+            <div class="card full">
+                <h3>Monthly leave days by nature</h3>
+                <div class="legend" id="lg-monthly-nat"></div>
+                <div style="position:relative;height:240px"><canvas id="ch-monthly-nat"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Full day vs half day</h3>
+                <div class="legend" id="lg-dur"></div>
+                <div style="position:relative;height:200px"><canvas id="ch-dur"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Cut-off thursday distribution</h3>
+                <div style="position:relative;height:200px"><canvas id="ch-cutoff"></canvas></div>
+            </div>
+        </div>
+        <!-- Center comparison — sortable table with inline bar, one row per center -->
+        <div class="card full" style="margin-top:4px">
+            <div class="card-hdr">
+                <h3>Leave days per center <span id="tr-ccomp-count" style="font-weight:400;color:var(--text3);font-size:12px;margin-left:6px"></span></h3>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span style="font-size:11px;color:var(--text3)">Sort by:</span>
+                    <select id="tr-sort" onchange="renderTrendsCenterTable()" style="padding:4px 8px;font-size:12px">
+                        <option value="days">Leave Days ↓</option>
+                        <option value="sudden">Sudden ↓</option>
+                        <option value="name">Center Name</option>
+                        <option value="region">Region</option>
+                    </select>
+                    <button class="export-btn" onclick="exportTrendsCenter()">⬇ Export</button>
+                </div>
+            </div>
+            <div class="tbl-wrap" style="max-height:500px">
+                <table id="tr-ccomp-tbl">
+                    <thead>
+                        <tr>
+                            <th>Region</th>
+                            <th>Center</th>
+                            <th style="text-align:right">Leave Days</th>
+                            <th style="text-align:right">Events</th>
+                            <th style="text-align:right">Sudden</th>
+                            <th style="text-align:right">Sudden %</th>
+                            <th style="text-align:right">Preinformed</th>
+                            <th style="text-align:right">Exceptional</th>
+                            <th style="width:180px">Days bar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tr-ccomp-body"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -344,6 +395,15 @@
                 <button class="export-btn" onclick="exportMonthlyPivot()">⬇ Export</button>
             </div>
             <div id="sd-monthly-pivot" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
+        </div>
+
+        <!-- Month-wise center breakdown — pivot: centers as rows (grouped by region), months as columns -->
+        <div class="card full" style="margin-bottom:16px">
+            <div class="card-hdr">
+                <h3>Month-wise center breakdown <span style="font-weight:400;color:var(--text3);font-size:11px">— scroll right for more months</span></h3>
+                <button class="export-btn" onclick="exportCenterMonthlyPivot()">⬇ Export</button>
+            </div>
+            <div id="sd-center-monthly-pivot" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
         </div>
 
         <!-- Weekly breakdown — Region > Center hierarchy, cumulative + per-week columns -->
@@ -809,34 +869,115 @@ function statusClass(s) {
 }
 
 // ── TRENDS ────────────────────────────────────────────────────
+// Shared filtered data for trends — also used by the center table sort
+let _trendsData = [];
+
 function renderTrends() {
-    let r=DATA.rows;
-    r=dateFilter(r,'tr-from','tr-to');
-    const reg=gv('tr-region');
-    if(reg) r=r.filter(x=>x.region===reg);
-    const totalDays=r.reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+    let r = DATA.rows;
+    r = dateFilter(r,'tr-from','tr-to');
+    const reg = gv('tr-region');
+    if(reg) r = r.filter(x=>x.region===reg);
+    _trendsData = r;
+
+    const totalDays = r.reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+    const filteredCenters = [...new Set(r.map(x=>x.center).filter(Boolean))];
     setKPIs('tr-kpis',[
-        {label:'Avg / center',val:Math.round(totalDays/Math.max(DATA.centers.length,1)),sub:'Leave days avg',cls:'blue'},
-        {label:'Full day ratio',val:pct(r.filter(x=>x.duration==='Full Day').length,r.length),sub:'Vs half day'},
-        {label:'Sudden rate',val:pct(r.filter(x=>x.nature==='Sudden').length,r.length),sub:'Of all leaves',cls:'coral'},
-        {label:'Preinformed rate',val:pct(r.filter(x=>x.nature==='Preinformed').length,r.length),sub:'Of all leaves',cls:'green'},
+        {label:'Avg / center', val:Math.round(totalDays/Math.max(filteredCenters.length,1)), sub:'Leave days avg', cls:'blue'},
+        {label:'Full day ratio', val:pct(r.filter(x=>x.duration==='Full Day').length,r.length), sub:'Vs half day'},
+        {label:'Sudden rate', val:pct(r.filter(x=>x.nature==='Sudden').length,r.length), sub:'Of all leaves', cls:'coral'},
+        {label:'Preinformed rate', val:pct(r.filter(x=>x.nature==='Preinformed').length,r.length), sub:'Of all leaves', cls:'green'},
     ]);
-    const weeks=[],wl=[];
-    for(let w=0;w<16;w++) {
-        const s=new Date('2026-01-01'); s.setDate(s.getDate()+w*7);
-        const e=new Date(s); e.setDate(e.getDate()+6);
-        const sm=s.toISOString().slice(0,10),em=e.toISOString().slice(0,10);
-        weeks.push(r.filter(x=>x.fromDate&&x.fromDate>=sm&&x.fromDate<=em).length);
-        wl.push('W'+(w+1));
-    }
-    makeChart('ch-wow','line',{labels:wl,datasets:[{label:'Submissions',data:weeks,borderColor:'#378ADD',backgroundColor:'#378ADD22',tension:.4,fill:true,pointRadius:3}]},'','','');
+
+    // ── Week-on-week stacked by region ────────────────────────
+    // Derive actual week boundaries from the data, not hardcoded Jan 2026
+    const wkDates = r.map(x=>x.fromDate).filter(Boolean).sort();
+    let wkStart = wkDates[0], wkEnd = wkDates[wkDates.length-1];
+    if(!wkStart) { wkStart='2026-01-01'; wkEnd='2026-04-30'; }
+    // Build Mon–Sun weeks covering the range (cap at 20 weeks for readability)
+    function getMon(s){ const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
+    function getSun(s){ const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+6); return d.toISOString().slice(0,10); }
+    const monSet=new Set(); r.forEach(x=>{ if(x.fromDate) monSet.add(getMon(x.fromDate)); });
+    const mondays = [...monSet].sort().slice(-20); // last 20 weeks max
+    const wkLabels = mondays.map((m,i)=>`W${i+1}`);
+    const wkRegions = [...new Set(r.map(x=>x.region).filter(Boolean))].sort();
+    const wkRegColors = wkRegions.map(rg=>COLORS[rg]||'#888');
+    const wkDatasets = wkRegions.map((rg,i)=>({
+        label: rg,
+        data: mondays.map(mon=>r.filter(x=>x.region===rg&&x.fromDate&&getMon(x.fromDate)===mon).length),
+        backgroundColor: wkRegColors[i],
+        stack: 's'
+    }));
+    makeChart('ch-wow','bar',{labels:wkLabels,datasets:wkDatasets},'lg-wow',wkRegions,wkRegColors,{stacked:true});
+
+    // ── Monthly leave days stacked by nature ──────────────────
+    const months = [...new Set(r.map(x=>x.fromDate&&x.fromDate.slice(0,7)).filter(Boolean))].sort();
+    const natures = ['Preinformed','Sudden','Exceptional'];
+    const natCols = [COLORS.Preinformed, COLORS.Sudden, COLORS.Exceptional];
+    const natDs = natures.map((n,i)=>({
+        label:n,
+        data: months.map(m=>r.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===m&&x.nature===n).reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0)),
+        backgroundColor: natCols[i],
+        stack:'s', borderRadius:2
+    }));
+    makeChart('ch-monthly-nat','bar',{labels:months.map(labelMonth),datasets:natDs},'lg-monthly-nat',natures,natCols,{stacked:true});
+
+    // ── Full day vs half day ──────────────────────────────────
     makePie('ch-dur',countBy(r,'duration'),'lg-dur',COLORS);
-    const cutoffs=[...new Set(r.map(x=>x.cutoff).filter(Boolean))].sort().slice(0,10);
-    makeChart('ch-cutoff','bar',{labels:cutoffs.map(c=>c.slice(5)),datasets:[{data:cutoffs.map(c=>r.filter(x=>x.cutoff===c).length),backgroundColor:'#1D9E7599',borderColor:'#0F6E56',borderWidth:1,borderRadius:3}]},'','','',{rotateTicks:true});
-    const centers=DATA.centers;
-    const cDays=centers.map(c=>Math.round(r.filter(x=>x.center===c).reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0)));
-    const cRegs=centers.map(c=>r.find(x=>x.center===c)?.region||'');
-    makeChart('ch-ccomp','bar',{labels:centers.map(c=>c.replace(' Vidyapeeth','').split(' - ').pop()),datasets:[{label:'Leave days',data:cDays,backgroundColor:cRegs.map(reg=>COLORS[reg]||'#888'),borderRadius:4}]},'','','',{rotateTicks:true});
+
+    // ── Cut-off thursday ─────────────────────────────────────
+    const cutoffs=[...new Set(r.map(x=>x.cutoff).filter(Boolean))].sort();
+    makeChart('ch-cutoff','bar',{
+        labels:cutoffs.map(c=>c.slice(5)),
+        datasets:[{data:cutoffs.map(c=>r.filter(x=>x.cutoff===c).length),backgroundColor:'#1D9E7599',borderColor:'#0F6E56',borderWidth:1,borderRadius:3}]
+    },'','','',{rotateTicks:true});
+
+    // ── Center comparison table ───────────────────────────────
+    renderTrendsCenterTable();
+}
+
+function renderTrendsCenterTable() {
+    const r = _trendsData;
+    if(!r.length) return;
+    const sort = document.getElementById('tr-sort')?.value || 'days';
+    const centers = [...new Set(r.map(x=>x.center).filter(Boolean))];
+    let rows = centers.map(c=>{
+        const cRows = r.filter(x=>x.center===c);
+        const days = cRows.reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+        const events = cRows.length;
+        const sudden = cRows.filter(x=>(x.nature||'').toLowerCase()==='sudden').length;
+        const preinformed = cRows.filter(x=>(x.nature||'').toLowerCase()==='preinformed').length;
+        const exceptional = cRows.filter(x=>(x.nature||'').toLowerCase()==='exceptional').length;
+        const region = cRows[0]?.region||'';
+        return { c, days, events, sudden, preinformed, exceptional, region };
+    });
+    if(sort==='days')   rows.sort((a,b)=>b.days-a.days);
+    if(sort==='sudden') rows.sort((a,b)=>b.sudden-a.sudden);
+    if(sort==='name')   rows.sort((a,b)=>a.c.localeCompare(b.c));
+    if(sort==='region') rows.sort((a,b)=>a.region.localeCompare(b.region)||b.days-a.days);
+
+    const maxDays = Math.max(...rows.map(x=>x.days), 1);
+    document.getElementById('tr-ccomp-count').textContent = `(${rows.length} centers)`;
+    document.getElementById('tr-ccomp-body').innerHTML = rows.map(row=>{
+        const barW = Math.round(row.days/maxDays*160);
+        const col = COLORS[row.region]||'#888';
+        const pctS = row.events ? Math.round(row.sudden/row.events*100) : 0;
+        const pctCls = pctS>=30?'color:var(--coral);font-weight:600':pctS>=20?'color:var(--amber);font-weight:600':'color:var(--green)';
+        return `<tr>
+            <td><span class="region-tag">${row.region}</span></td>
+            <td style="font-size:12px;font-weight:500">${row.c.replace(' Vidyapeeth','')}</td>
+            <td style="text-align:right;font-weight:600;color:var(--blue)">${row.days%1===0?row.days:row.days.toFixed(1)}</td>
+            <td style="text-align:right">${row.events}</td>
+            <td style="text-align:right;${pctCls}">${row.sudden}</td>
+            <td style="text-align:right;${pctCls}">${pctS}%</td>
+            <td style="text-align:right;color:var(--green)">${row.preinformed}</td>
+            <td style="text-align:right;color:var(--amber)">${row.exceptional}</td>
+            <td style="padding:4px 8px;vertical-align:middle">
+                <div style="background:#f0f0f0;border-radius:3px;height:14px;width:160px">
+                    <div style="background:${col};height:14px;border-radius:3px;width:${barW}px"></div>
+                </div>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="9" class="empty">No data.</td></tr>';
 }
 
 // ── SUDDEN ANALYSIS ───────────────────────────────────────────
@@ -1115,6 +1256,9 @@ function renderSudden() {
         </table>`;
     }
 
+    // ── Center-wise monthly pivot ─────────────────────────────
+    buildCenterMonthlyPivot(base);
+
     // ── "To be considered" raw records table ─────────────────
     document.getElementById('sd-rec-count').textContent = '(' + base.length + ' records)';
     document.getElementById('sd-rec-body').innerHTML = base.slice(0,500).map(row=>`<tr>
@@ -1183,6 +1327,111 @@ function renderSudden() {
 
     // ── Weekly breakdown pivot ────────────────────────────────
     buildWeeklyPivot(base, gv('sd-from'), gv('sd-to'));
+}
+
+// ── CENTER MONTHLY PIVOT ──────────────────────────────────────
+// Same structure as region monthly pivot but rows = centers (grouped by region)
+function buildCenterMonthlyPivot(base) {
+    const el = document.getElementById('sd-center-monthly-pivot');
+    if(!el) return;
+    const months  = [...new Set(base.map(x=>x.fromDate&&x.fromDate.slice(0,7)).filter(Boolean))].sort();
+    const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    if(!months.length) { el.innerHTML='<p class="empty">No data in range.</p>'; return; }
+
+    const SUBCOLS = ['Events','Sudden Ev.','Ev. %','Days','Sudden Days','Days %'];
+
+    // Direct stat from a pre-filtered (base) slice
+    function ds(rows) {
+        return {
+            totalEvents:  rows.length,
+            suddenEvents: rows.filter(isSudden).length,
+            totalDays:    rows.reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0),
+            suddenDays:   rows.filter(isSudden).reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0),
+        };
+    }
+
+    // Header row 1: sticky Region + sticky Center + month groups + Grand Total
+    let hdr1 = `<tr>
+        <th rowspan="2" style="position:sticky;left:0;z-index:4;background:var(--surface2);min-width:100px;text-align:left">Region</th>
+        <th rowspan="2" style="position:sticky;left:100px;z-index:4;background:var(--surface2);min-width:160px;text-align:left;border-right:2px solid var(--border)">Center</th>`;
+    months.forEach(mon => {
+        hdr1 += `<th colspan="6" style="text-align:center;background:#EEF4FB;border-left:2px solid var(--border)">${labelMonth(mon)}</th>`;
+    });
+    hdr1 += `<th colspan="6" style="text-align:center;background:#e8f0f7;border-left:2px solid var(--border)">Grand Total</th></tr>`;
+
+    // Header row 2: sub-column labels
+    let hdr2 = '<tr>';
+    for(let i=0; i<=months.length; i++) {
+        const bg = i===months.length ? 'background:#e8f0f7;' : i%2===0?'background:#f0f4fa;':'background:#f8f9fa;';
+        SUBCOLS.forEach((sc,j) => {
+            hdr2 += `<th style="text-align:right;font-size:10px;white-space:nowrap;${j===0?'border-left:2px solid var(--border);':''}${bg}">${sc}</th>`;
+        });
+    }
+    hdr2 += '</tr>';
+
+    // Data rows
+    let dataRows = '';
+    regions.forEach(reg => {
+        const regRows = base.filter(x=>x.region===reg);
+        const centers = [...new Set(regRows.map(x=>x.center).filter(Boolean))].sort();
+        centers.forEach((ctr, ci) => {
+            const ctrRows = regRows.filter(x=>x.center===ctr);
+            const shortName = ctr.replace(' Vidyapeeth','');
+            const isFirst = ci===0;
+            const regionCell = isFirst
+                ? `<td rowspan="${centers.length}" style="position:sticky;left:0;z-index:1;background:var(--surface);vertical-align:middle;font-weight:600;border-right:1px solid var(--border);${isFirst?'border-top:2px solid #B5D4F4':''}">${reg}</td>`
+                : '';
+            const topBorder = isFirst ? 'border-top:2px solid #B5D4F4;' : '';
+            let row = `<tr style="${topBorder}">${regionCell}
+                <td style="position:sticky;left:100px;z-index:1;background:var(--surface);font-size:11px;border-right:2px solid var(--border)">${shortName}</td>`;
+            months.forEach((mon,i) => {
+                const s = ds(ctrRows.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===mon));
+                const bg = i%2===0?'background:#fafafa;':'';
+                row += `<td style="text-align:right;border-left:2px solid var(--border);${bg}">${s.totalEvents||0}</td>
+                        <td style="text-align:right;${bg}">${s.suddenEvents||0}</td>
+                        <td style="text-align:right;${bg}">${pctFmt(s.suddenEvents,s.totalEvents)}</td>
+                        <td style="text-align:right;${bg}">${fmtDays(s.totalDays||0)}</td>
+                        <td style="text-align:right;${bg}">${fmtDays(s.suddenDays||0)}</td>
+                        <td style="text-align:right;${bg}">${pctFmt(s.suddenDays,s.totalDays)}</td>`;
+            });
+            // Row grand total
+            const rt = ds(ctrRows);
+            row += `<td style="text-align:right;border-left:2px solid var(--border);background:#e8f0f7;font-weight:600">${rt.totalEvents}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${rt.suddenEvents}</td>
+                    <td style="text-align:right;background:#e8f0f7">${pctFmt(rt.suddenEvents,rt.totalEvents)}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${fmtDays(rt.totalDays)}</td>
+                    <td style="text-align:right;background:#e8f0f7;font-weight:600">${fmtDays(rt.suddenDays)}</td>
+                    <td style="text-align:right;background:#e8f0f7">${pctFmt(rt.suddenDays,rt.totalDays)}</td>`;
+            row += '</tr>';
+            dataRows += row;
+        });
+    });
+
+    // Grand total row
+    let gtr = `<tr style="background:#e8f0f7;font-weight:700;border-top:2px solid var(--border)">
+        <td style="position:sticky;left:0;background:#e8f0f7;z-index:1">Grand Total</td>
+        <td style="position:sticky;left:100px;background:#e8f0f7;z-index:1;border-right:2px solid var(--border)"></td>`;
+    months.forEach(mon => {
+        const s = ds(base.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===mon));
+        gtr += `<td style="text-align:right;border-left:2px solid var(--border)">${s.totalEvents}</td>
+                <td style="text-align:right">${s.suddenEvents}</td>
+                <td style="text-align:right">${pctFmt(s.suddenEvents,s.totalEvents)}</td>
+                <td style="text-align:right">${fmtDays(s.totalDays)}</td>
+                <td style="text-align:right">${fmtDays(s.suddenDays)}</td>
+                <td style="text-align:right">${pctFmt(s.suddenDays,s.totalDays)}</td>`;
+    });
+    const gt = ds(base);
+    gtr += `<td style="text-align:right;border-left:2px solid var(--border)">${gt.totalEvents}</td>
+            <td style="text-align:right">${gt.suddenEvents}</td>
+            <td style="text-align:right">${pctFmt(gt.suddenEvents,gt.totalEvents)}</td>
+            <td style="text-align:right">${fmtDays(gt.totalDays)}</td>
+            <td style="text-align:right">${fmtDays(gt.suddenDays)}</td>
+            <td style="text-align:right">${pctFmt(gt.suddenDays,gt.totalDays)}</td></tr>`;
+
+    el.innerHTML = `<table style="border-collapse:collapse;font-size:11px;width:100%">
+        <thead>${hdr1}${hdr2}</thead>
+        <tbody>${dataRows}${gtr}</tbody>
+    </table>`;
 }
 
 // ── WEEKLY BREAKDOWN PIVOT ────────────────────────────────────
@@ -1585,6 +1834,63 @@ function exportCenterSummary() {
     xlsxDownload(wb, 'SD_Center_Summary');
 }
 
+function exportCenterMonthlyPivot() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    // Reuse buildMonthlyPivotSheet but keyed by center
+    const months  = [...new Set(base.map(x=>x.fromDate&&x.fromDate.slice(0,7)).filter(Boolean))].sort();
+    const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    const SUBCOLS = ['Events','Sudden Events','Sudden Ev. %','Days','Sudden Days','Sudden Days %'];
+    function ds(rows) {
+        const te=rows.length,se=rows.filter(isSudden).length;
+        const td=rows.reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+        const sd=rows.filter(isSudden).reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+        return [te,se,te?(se/te*100).toFixed(2)+'%':'—',fmtDays(td),fmtDays(sd),td?(sd/td*100).toFixed(2)+'%':'—'];
+    }
+    const hdr1=['Region','Center']; months.forEach(m=>{hdr1.push(labelMonth(m));for(let i=1;i<6;i++)hdr1.push('');}); hdr1.push('Grand Total');for(let i=1;i<6;i++)hdr1.push('');
+    const hdr2=['','']; for(let i=0;i<=months.length;i++) SUBCOLS.forEach(s=>hdr2.push(s));
+    const rows=[hdr1,hdr2];
+    regions.forEach(reg=>{
+        base.filter(x=>x.region===reg);
+        const centers=[...new Set(base.filter(x=>x.region===reg).map(x=>x.center).filter(Boolean))].sort();
+        centers.forEach(ctr=>{
+            const ctrRows=base.filter(x=>x.center===ctr);
+            const row=[reg,ctr.replace(' Vidyapeeth','')];
+            months.forEach(mon=>ds(ctrRows.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===mon)).forEach(v=>row.push(v)));
+            ds(ctrRows).forEach(v=>row.push(v));
+            rows.push(row);
+        });
+    });
+    const gtr=['Grand Total',''];
+    months.forEach(mon=>ds(base.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===mon)).forEach(v=>gtr.push(v)));
+    ds(base).forEach(v=>gtr.push(v));
+    rows.push(gtr);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Center Monthly Pivot');
+    xlsxDownload(wb, 'SD_Center_Monthly_Pivot');
+}
+
+function exportTrendsCenter() {
+    const r = _trendsData;
+    const centers = [...new Set(r.map(x=>x.center).filter(Boolean))];
+    const rows = [['Region','Center','Leave Days','Events','Sudden Events','Sudden %','Preinformed','Exceptional']];
+    centers.sort((a,b)=>{
+        const da=r.filter(x=>x.center===a).reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+        const db=r.filter(x=>x.center===b).reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+        return db-da;
+    }).forEach(c=>{
+        const cRows=r.filter(x=>x.center===c);
+        const days=cRows.reduce((s,x)=>s+(parseFloat(x.actualDays)||1),0);
+        const ev=cRows.length;
+        const su=cRows.filter(x=>(x.nature||'').toLowerCase()==='sudden').length;
+        const pr=cRows.filter(x=>(x.nature||'').toLowerCase()==='preinformed').length;
+        const ex=cRows.filter(x=>(x.nature||'').toLowerCase()==='exceptional').length;
+        rows.push([cRows[0]?.region||'', c.replace(' Vidyapeeth',''), fmtDays(days), ev, su, ev?(su/ev*100).toFixed(2)+'%':'—', pr, ex]);
+    });
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Center Trends');
+    xlsxDownload(wb, 'Trends_Center_Comparison');
+}
+
 function exportMonthlyPivot() {
     const base = getSuddenBase();
     const wb = XLSX.utils.book_new();
@@ -1649,8 +1955,7 @@ function exportAllSheets() {
     XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(facRows),      'Faculty Records');
     XLSX.utils.book_append_sheet(wb, buildRegionSummarySheet(base),      'SD Region Summary');
     XLSX.utils.book_append_sheet(wb, buildCenterSummarySheet(base),      'SD Center Summary');
-    XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base),       'SD Monthly Pivot');
-    XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'SD Weekly Breakdown');
+    XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base),       'SD Monthly Pivot');    XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'SD Weekly Breakdown');
     XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(base),         'SD Records');
     XLSX.utils.book_append_sheet(wb, buildEmpSummarySheet(base),         'SD Employee Summary');
     xlsxDownload(wb, 'Leave_Dashboard_Export');
