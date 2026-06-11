@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Leave Analytics Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0 }
         :root {
@@ -107,6 +108,20 @@
         .wk-tbl .wk-sep { border-left: 2px solid #c0d4ec; }
         .wk-tbl .wk-alt { background: #fafbfc; }
         .wk-tbl thead tr.wk-hdr2 th { font-size: 9px; color: var(--text3); font-weight: 600; }
+        /* Export buttons */
+        .export-btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 11px; font-size: 11px; font-weight: 600;
+            background: #fff; color: #1D9E75;
+            border: 1.5px solid #1D9E75; border-radius: 5px;
+            cursor: pointer; white-space: nowrap; transition: all .15s;
+        }
+        .export-btn:hover { background: #1D9E75; color: #fff; }
+        .export-btn.full { padding: 6px 14px; font-size: 12px; background: #1D9E75; color: #fff; border-color: #1D9E75; }
+        .export-btn.full:hover { background: #0F6E56; border-color: #0F6E56; }
+        .card-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+        .card-hdr h3 { margin-bottom: 0; }
+        .card-hdr-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -115,6 +130,7 @@
     <div class="sync-dot" id="syncDot"></div>
     <h1>Leave Analytics Dashboard</h1>
     <button class="refresh-btn" onclick="loadData()">&#x21BB; Refresh</button>
+    <button class="export-btn full" onclick="exportAllSheets()" title="Export all tabs as one Excel workbook">⬇ Export All (.xlsx)</button>
     <div class="sync-info">Last synced: <strong id="syncTime">—</strong></div>
 </header>
 
@@ -183,7 +199,10 @@
             <div class="card full"><h3>Leave days per region — stacked by type</h3><div class="legend" id="lg-rstack"></div><div style="position:relative;height:280px"><canvas id="ch-rstack"></canvas></div></div>
             <div class="card full"><h3>Preinformed vs sudden vs exceptional by region</h3><div class="legend" id="lg-rnat"></div><div style="position:relative;height:240px"><canvas id="ch-rnat"></canvas></div></div>
             <div class="card full">
-                <h3>Filtered records <span id="rg-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                <div class="card-hdr">
+                    <h3>Filtered records <span id="rg-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                    <button class="export-btn" onclick="exportRegionRecords()">⬇ Export</button>
+                </div>
                 <div class="tbl-wrap">
                     <table>
                         <thead><tr><th>Faculty</th><th>Emp ID</th><th>Center</th><th>Region</th><th>Leave type</th><th>Nature</th><th>Days</th><th>From</th><th>Status</th></tr></thead>
@@ -225,7 +244,10 @@
             <button class="clear-btn" onclick="clearFilters('fl')">Clear</button>
         </div>
         <div class="card full">
-            <h3>Faculty leave records <span id="fac-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+            <div class="card-hdr">
+                <h3>Faculty leave records <span id="fac-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                <button class="export-btn" onclick="exportFacultyRecords()">⬇ Export</button>
+            </div>
             <div class="tbl-wrap">
                 <table>
                     <thead><tr><th>Faculty</th><th>Emp ID</th><th>Center</th><th>Region</th><th>Leave type</th><th>Duration</th><th>Nature</th><th>Days</th><th>From</th><th>Till</th><th>Status</th></tr></thead>
@@ -266,7 +288,10 @@
 
         <!-- Overall region summary table -->
         <div class="card full" style="margin-bottom:16px">
-            <h3>Region summary — overall period <span id="sd-period" style="font-weight:400;color:var(--text3);margin-left:8px;font-size:12px"></span></h3>
+            <div class="card-hdr">
+                <h3>Region summary — overall period <span id="sd-period" style="font-weight:400;color:var(--text3);margin-left:8px;font-size:12px"></span></h3>
+                <button class="export-btn" onclick="exportRegionSummary()">⬇ Export</button>
+            </div>
             <div class="tbl-wrap">
                 <table id="sd-summary-tbl">
                     <thead>
@@ -288,21 +313,30 @@
 
         <!-- Month-wise comparison table — pivot: regions as rows, months as columns -->
         <div class="card full" style="margin-bottom:16px">
-            <h3>Month-wise region breakdown <span style="font-weight:400;color:var(--text3);font-size:11px">— scroll right for more months</span></h3>
+            <div class="card-hdr">
+                <h3>Month-wise region breakdown <span style="font-weight:400;color:var(--text3);font-size:11px">— scroll right for more months</span></h3>
+                <button class="export-btn" onclick="exportMonthlyPivot()">⬇ Export</button>
+            </div>
             <div id="sd-monthly-pivot" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
         </div>
 
         <!-- Weekly breakdown — Region > Center hierarchy, cumulative + per-week columns -->
         <div class="card full" style="margin-bottom:16px">
-            <h3>Weekly breakdown — Region › Center
-                <span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px">Weeks run Mon–Sun within the selected date range</span>
-            </h3>
+            <div class="card-hdr">
+                <h3>Weekly breakdown — Region › Center
+                    <span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:8px">Weeks run Mon–Sun within the selected date range</span>
+                </h3>
+                <button class="export-btn" onclick="exportWeeklyBreakdown()">⬇ Export</button>
+            </div>
             <div id="sd-weekly-pivot" style="overflow-x:auto;max-height:600px;overflow-y:auto"></div>
         </div>
 
         <!-- Filtered raw records (status = to be considered) -->
         <div class="card full" style="margin-bottom:16px">
-            <h3>Records — status: "To be considered" <span id="sd-rec-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+            <div class="card-hdr">
+                <h3>Records — status: "To be considered" <span id="sd-rec-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                <button class="export-btn" onclick="exportSuddenRecords()">⬇ Export</button>
+            </div>
             <div class="tbl-wrap">
                 <table>
                     <thead>
@@ -326,10 +360,14 @@
 
         <!-- Employee-level summary -->
         <div class="card full">
-            <h3>Employee leave summary — "To be considered" only
-                <span id="sd-emp-count" style="font-weight:400;color:var(--text3);margin-left:8px"></span>
-                <span style="font-weight:400;color:var(--text3);font-size:11px;margin-left:12px">Sorted by total leave days ↓</span>
-            </h3>
+            <div class="card-hdr">
+                <div class="card-hdr-left">
+                    <h3>Employee leave summary — "To be considered" only</h3>
+                    <span id="sd-emp-count" style="font-weight:400;color:var(--text3);font-size:12px"></span>
+                    <span style="font-weight:400;color:var(--text3);font-size:11px">Sorted by total leave days ↓</span>
+                </div>
+                <button class="export-btn" onclick="exportEmployeeSummary()">⬇ Export</button>
+            </div>
             <div class="tbl-wrap">
                 <table>
                     <thead>
@@ -1248,6 +1286,261 @@ function buildMonthMap(arr) { const m={}; arr.forEach(r=>{ if(!r.fromDate||r.fro
 function labelMonth(k) { const [y,m]=k.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]+' '+y.slice(2); }
 function pct(num,den) { return den ? Math.round(num/den*100)+'%' : '0%'; }
 function setKPIs(id,items) { const el=document.getElementById(id); if(!el) return; el.innerHTML=items.map(k=>`<div class="kpi${k.cls?' '+k.cls:''}"><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub||''}</div></div>`).join(''); }
+
+// ── EXPORT HELPERS ────────────────────────────────────────────
+// All exports use SheetJS (xlsx).  Each function builds one or more
+// worksheet arrays from the live filtered DATA, then triggers a download.
+
+function xlsxDownload(wb, filename) {
+    XLSX.writeFile(wb, filename + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+// Shared: apply the Sudden Analysis filters and return base (considered-only) rows
+function getSuddenBase() {
+    let r = DATA.rows;
+    r = dateFilter(r, 'sd-from', 'sd-to');
+    const reg = gv('sd-region');
+    if(reg) r = r.filter(x => x.region === reg);
+    return r.filter(isConsidered);
+}
+
+// Shared: apply Faculty tab filters
+function getFacultyFiltered() {
+    let d = DATA.rows;
+    d = dateFilter(d, 'fl-from', 'fl-to');
+    const reg=gv('fl-region'),cen=gv('fl-center'),lt=gv('fl-ltype'),nat=gv('fl-nature'),st=gv('fl-status');
+    if(reg) d=d.filter(r=>r.region===reg);
+    if(cen) d=d.filter(r=>r.center===cen);
+    if(lt)  d=d.filter(r=>r.leaveType===lt);
+    if(nat) d=d.filter(r=>r.nature===nat);
+    if(st)  d=d.filter(r=>r.status===st);
+    return d;
+}
+
+// Shared: apply Region tab filters
+function getRegionFiltered() {
+    let r = DATA.rows;
+    r = dateFilter(r, 'rg-from', 'rg-to');
+    const selReg  = gv('rg-filter-region');
+    const selCens = multiSelected('rg-filter-centers');
+    const selSts  = multiSelected('rg-filter-status');
+    if(selReg)         r = r.filter(x=>x.region===selReg);
+    if(selCens.length) r = r.filter(x=>selCens.includes(x.center));
+    if(selSts.length)  r = r.filter(x=>selSts.includes(x.status));
+    return r;
+}
+
+// Raw records row mapper (used by several exports)
+function rowToArray(r) {
+    return [
+        r.faculty||'', r.empId||'', (r.center||'').replace(' Vidyapeeth',''),
+        r.region||'', r.leaveType||'', r.duration||'', r.nature||'',
+        parseFloat(r.actualDays)||1, r.fromDate||'', r.tillDate||'', r.status||''
+    ];
+}
+const RAW_HEADERS = ['Faculty','Emp ID','Center','Region','Leave Type','Duration','Nature','Days','From','Till','Status'];
+
+// ── Build sheets ──────────────────────────────────────────────
+function buildRegionSummarySheet(base) {
+    const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    const hdr = ['Region','Total Leave Events','Sudden Leave Events','Sudden Event %','Total Leave Days','Sudden Leave Days','Sudden Days %'];
+    const rows = [hdr];
+    regions.forEach(reg => {
+        const s = calcStats(base.filter(x=>x.region===reg));
+        const ep = s.totalEvents ? (s.suddenEvents/s.totalEvents*100).toFixed(2)+'%' : '—';
+        const dp = s.totalDays   ? (s.suddenDays/s.totalDays*100).toFixed(2)+'%'     : '—';
+        rows.push([reg, s.totalEvents, s.suddenEvents, ep, fmtDays(s.totalDays), fmtDays(s.suddenDays), dp]);
+    });
+    const gs = calcStats(base);
+    rows.push(['Grand Total', gs.totalEvents, gs.suddenEvents,
+        gs.totalEvents?(gs.suddenEvents/gs.totalEvents*100).toFixed(2)+'%':'—',
+        fmtDays(gs.totalDays), fmtDays(gs.suddenDays),
+        gs.totalDays?(gs.suddenDays/gs.totalDays*100).toFixed(2)+'%':'—']);
+    return XLSX.utils.aoa_to_sheet(rows);
+}
+
+function buildMonthlyPivotSheet(base) {
+    const months  = [...new Set(base.map(x=>x.fromDate&&x.fromDate.slice(0,7)).filter(Boolean))].sort();
+    const allRegs = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    const SUBCOLS = ['Total Events','Sudden Events','Sudden Event %','Total Days','Sudden Days','Sudden Days %'];
+    function statArr(rows) {
+        const te=rows.length, se=rows.filter(isSudden).length;
+        const td=rows.reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+        const sd=rows.filter(isSudden).reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+        return [te, se, te?(se/te*100).toFixed(2)+'%':'—', fmtDays(td), fmtDays(sd), td?(sd/td*100).toFixed(2)+'%':'—'];
+    }
+    // Header row 1
+    const hdr1 = ['Region'];
+    months.forEach(m => { hdr1.push(labelMonth(m)); for(let i=1;i<6;i++) hdr1.push(''); });
+    hdr1.push('Grand Total'); for(let i=1;i<6;i++) hdr1.push('');
+    // Header row 2
+    const hdr2 = [''];
+    const rep = months.length + 1;
+    for(let i=0;i<rep;i++) SUBCOLS.forEach(s=>hdr2.push(s));
+    const rows = [hdr1, hdr2];
+    allRegs.forEach(reg => {
+        const row = [reg];
+        months.forEach(mon => {
+            const s = base.filter(x=>x.region===reg&&x.fromDate&&x.fromDate.slice(0,7)===mon);
+            statArr(s).forEach(v=>row.push(v));
+        });
+        statArr(base.filter(x=>x.region===reg)).forEach(v=>row.push(v));
+        rows.push(row);
+    });
+    // Grand total row
+    const gtr = ['Grand Total'];
+    months.forEach(mon => {
+        statArr(base.filter(x=>x.fromDate&&x.fromDate.slice(0,7)===mon)).forEach(v=>gtr.push(v));
+    });
+    statArr(base).forEach(v=>gtr.push(v));
+    rows.push(gtr);
+    return XLSX.utils.aoa_to_sheet(rows);
+}
+
+function buildWeeklySheet(base, fromStr, toStr) {
+    const allDates = base.map(r=>r.fromDate).filter(Boolean).sort();
+    const rangeFrom = fromStr || allDates[0];
+    const rangeTo   = toStr   || allDates[allDates.length-1];
+    function toISO(d)  { return d.toISOString().slice(0,10); }
+    function getMon(s) { const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return toISO(d); }
+    function getSun(s) { const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+6); return toISO(d); }
+    function fmtD(s)   { if(!s) return '—'; const [,m,d]=s.split('-'); return `${+d} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]}`; }
+    const monSet=new Set();
+    base.forEach(r=>{ if(!r.fromDate||r.fromDate<rangeFrom||r.fromDate>rangeTo) return; monSet.add(getMon(r.fromDate)); });
+    const mondays = [...monSet].sort();
+    const weekDefs = mondays.map((mon,i)=>({ mon, sun:getSun(mon), label:`Week No. ${i+1} (${fmtD(mon)}-${fmtD(getSun(mon))})` }));
+    const allCols = [
+        { label:`Cumulative (${fmtD(rangeFrom)}-${fmtD(rangeTo)})`, isCum:true },
+        ...[...weekDefs].reverse()
+    ];
+    const SUBCOLS = ['Total Leaves Events','Total No. of Leaves Days','Sudden Leaves Events','Sudden Leaves Events %'];
+    function ws(rows) {
+        const te=rows.length, td=rows.reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+        const se=rows.filter(isSudden).length;
+        return [te, fmtDays(td), se, te?(se/te*100).toFixed(2)+'%':'—'];
+    }
+    function sliceRows(rows, col) {
+        if(col.isCum) return rows.filter(r=>r.fromDate&&r.fromDate>=rangeFrom&&r.fromDate<=rangeTo);
+        return rows.filter(r=>r.fromDate&&r.fromDate>=col.mon&&r.fromDate<=col.sun);
+    }
+    // Header rows
+    const hdr1 = ['Region','Center']; allCols.forEach(c=>{ hdr1.push(c.label); for(let i=1;i<4;i++) hdr1.push(''); });
+    const hdr2 = ['','']; allCols.forEach(()=>SUBCOLS.forEach(s=>hdr2.push(s)));
+    const rows = [hdr1, hdr2];
+    const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    regions.forEach(reg => {
+        const regRows = base.filter(x=>x.region===reg);
+        const centers = [...new Set(regRows.map(x=>x.center).filter(Boolean))].sort();
+        centers.forEach(ctr => {
+            const ctrRows = regRows.filter(x=>x.center===ctr);
+            const row = [reg, ctr.replace(' Vidyapeeth','')];
+            allCols.forEach(col => ws(sliceRows(ctrRows,col)).forEach(v=>row.push(v)));
+            rows.push(row);
+        });
+    });
+    const overall = ['OVERALL',''];
+    allCols.forEach(col => ws(sliceRows(base,col)).forEach(v=>overall.push(v)));
+    rows.push(overall);
+    return XLSX.utils.aoa_to_sheet(rows);
+}
+
+function buildEmpSummarySheet(base) {
+    const empMap = {};
+    base.forEach(row => {
+        const key = (row.empId&&row.empId.trim()) ? row.empId.trim() : '__name__'+(row.faculty||'').trim();
+        if(!empMap[key]) empMap[key]={ name:row.faculty||'', empId:row.empId||'', center:(row.center||'').replace(' Vidyapeeth',''), region:row.region||'', totalLeaves:0, leaveDays:0, sudden:0, preinformed:0, exceptional:0, other:0 };
+        const e=empMap[key]; e.totalLeaves++; e.leaveDays+=parseFloat(row.actualDays)||1;
+        const nat=(row.nature||'').toLowerCase();
+        if(nat==='sudden') e.sudden++; else if(nat==='preinformed') e.preinformed++; else if(nat==='exceptional') e.exceptional++; else e.other++;
+    });
+    const list = Object.values(empMap).sort((a,b)=>b.leaveDays-a.leaveDays);
+    const hdr = ['#','Employee Name','PW ID (Emp ID)','Center','Region','Total Leaves','Leave Days','Sudden','Preinformed','Exceptional','Other'];
+    const rows = [hdr];
+    list.forEach((e,i) => rows.push([i+1, e.name, e.empId, e.center, e.region, e.totalLeaves, fmtDays(e.leaveDays), e.sudden, e.preinformed, e.exceptional, e.other]));
+    return XLSX.utils.aoa_to_sheet(rows);
+}
+
+function buildRawRecordsSheet(data) {
+    return XLSX.utils.aoa_to_sheet([RAW_HEADERS, ...data.map(rowToArray)]);
+}
+
+// ── Individual export triggers ────────────────────────────────
+function exportRegionSummary() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildRegionSummarySheet(base), 'Region Summary');
+    xlsxDownload(wb, 'SD_Region_Summary');
+}
+
+function exportMonthlyPivot() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base), 'Monthly Pivot');
+    xlsxDownload(wb, 'SD_Monthly_Pivot');
+}
+
+function exportWeeklyBreakdown() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'Weekly Breakdown');
+    xlsxDownload(wb, 'SD_Weekly_Breakdown');
+}
+
+function exportSuddenRecords() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(base), 'To Be Considered Records');
+    xlsxDownload(wb, 'SD_Records');
+}
+
+function exportEmployeeSummary() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildEmpSummarySheet(base), 'Employee Summary');
+    xlsxDownload(wb, 'SD_Employee_Summary');
+}
+
+function exportRegionRecords() {
+    const rows = getRegionFiltered();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(rows), 'Region Records');
+    xlsxDownload(wb, 'Region_Records');
+}
+
+function exportFacultyRecords() {
+    const rows = getFacultyFiltered();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(rows), 'Faculty Records');
+    xlsxDownload(wb, 'Faculty_Records');
+}
+
+// ── Export All — full workbook with every section ─────────────
+function exportAllSheets() {
+    if(!DATA.rows.length) { alert('No data loaded yet.'); return; }
+
+    const base = getSuddenBase();
+    const regRows = getRegionFiltered();
+    const facRows = getFacultyFiltered();
+
+    // Overview — all rows with current ov filters
+    let ovRows = DATA.rows;
+    ovRows = dateFilter(ovRows,'ov-from','ov-to');
+    const ovReg=gv('ov-region'),ovNat=gv('ov-nature'),ovSt=gv('ov-status');
+    if(ovReg) ovRows=ovRows.filter(x=>x.region===ovReg);
+    if(ovNat) ovRows=ovRows.filter(x=>x.nature===ovNat);
+    if(ovSt)  ovRows=ovRows.filter(x=>x.status===ovSt);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(ovRows),       'Overview Records');
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(regRows),      'By Region Records');
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(facRows),      'Faculty Records');
+    XLSX.utils.book_append_sheet(wb, buildRegionSummarySheet(base),      'SD Region Summary');
+    XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base),       'SD Monthly Pivot');
+    XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'SD Weekly Breakdown');
+    XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(base),         'SD Records');
+    XLSX.utils.book_append_sheet(wb, buildEmpSummarySheet(base),         'SD Employee Summary');
+    xlsxDownload(wb, 'Leave_Dashboard_Export');
+}
 
 // ── INIT ──────────────────────────────────────────────────────
 const savedUrl = localStorage.getItem('leaveApiUrl');
