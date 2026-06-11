@@ -311,6 +311,32 @@
             </div>
         </div>
 
+        <!-- Center summary table -->
+        <div class="card full" style="margin-bottom:16px">
+            <div class="card-hdr">
+                <h3>Center summary — overall period <span style="font-weight:400;color:var(--text3);font-size:12px">grouped by region</span></h3>
+                <button class="export-btn" onclick="exportCenterSummary()">⬇ Export</button>
+            </div>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Region</th>
+                            <th>Center</th>
+                            <th style="text-align:right">Total Leave Events</th>
+                            <th style="text-align:right">Sudden Leave Events</th>
+                            <th style="text-align:right">Sudden Event %</th>
+                            <th style="text-align:right">Total Leave Days</th>
+                            <th style="text-align:right">Sudden Leave Days</th>
+                            <th style="text-align:right">Sudden Days %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sd-center-body"></tbody>
+                    <tfoot id="sd-center-foot"></tfoot>
+                </table>
+            </div>
+        </div>
+
         <!-- Month-wise comparison table — pivot: regions as rows, months as columns -->
         <div class="card full" style="margin-bottom:16px">
             <div class="card-hdr">
@@ -896,6 +922,55 @@ function renderSudden() {
     document.getElementById('sd-summary-body').innerHTML = summaryHtml ||
         '<tr><td colspan="7" class="empty">No data.</td></tr>';
 
+    // ── Center summary table ──────────────────────────────────
+    // Same 6 columns as region summary, but one row per center, grouped by region.
+    // Region column uses rowspan (merged cell style) for clean grouping.
+    let centerBodyHtml = '';
+    regions.forEach(reg => {
+        const regRows = base.filter(x=>x.region===reg);
+        const centers = [...new Set(regRows.map(x=>x.center).filter(Boolean))].sort();
+        centers.forEach((ctr, ci) => {
+            const ctrRows = regRows.filter(x=>x.center===ctr);
+            const s = calcStats(ctrRows);   // base already considered-only; calcStats re-filters safely
+            // Inline stats since ctrRows is already from base
+            const te = ctrRows.length;
+            const se = ctrRows.filter(isSudden).length;
+            const td = ctrRows.reduce((acc,x)=>acc+(parseFloat(x.actualDays)||1),0);
+            const sd = ctrRows.filter(isSudden).reduce((acc,x)=>acc+(parseFloat(x.actualDays)||1),0);
+            const isFirst = ci === 0;
+            const regionCell = isFirst
+                ? `<td rowspan="${centers.length}" style="vertical-align:middle;border-right:1px solid var(--border);font-weight:600${ci===0?';border-top:2px solid #B5D4F4':''}">${reg}</td>`
+                : '';
+            const topBorder = isFirst ? 'border-top:2px solid #B5D4F4;' : '';
+            centerBodyHtml += `<tr style="${topBorder}">
+                ${regionCell}
+                <td style="font-size:12px">${ctr.replace(' Vidyapeeth','')}</td>
+                <td style="text-align:right">${te}</td>
+                <td style="text-align:right">${se}</td>
+                <td style="text-align:right">${pctFmt(se,te)}</td>
+                <td style="text-align:right">${fmtDays(td)}</td>
+                <td style="text-align:right">${fmtDays(sd)}</td>
+                <td style="text-align:right">${pctFmt(sd,td)}</td>
+            </tr>`;
+        });
+    });
+    document.getElementById('sd-center-body').innerHTML = centerBodyHtml ||
+        '<tr><td colspan="8" class="empty">No data.</td></tr>';
+    // Center grand total footer
+    const cgt = document.getElementById('sd-center-foot');
+    if(cgt) {
+        const gs = calcStats(r);
+        cgt.innerHTML = `<tr>
+            <td colspan="2"><strong>Grand Total</strong></td>
+            <td style="text-align:right"><strong>${gs.totalEvents}</strong></td>
+            <td style="text-align:right"><strong>${gs.suddenEvents}</strong></td>
+            <td style="text-align:right">${pctFmt(gs.suddenEvents,gs.totalEvents)}</td>
+            <td style="text-align:right"><strong>${fmtDays(gs.totalDays)}</strong></td>
+            <td style="text-align:right"><strong>${fmtDays(gs.suddenDays)}</strong></td>
+            <td style="text-align:right">${pctFmt(gs.suddenDays,gs.totalDays)}</td>
+        </tr>`;
+    }
+
     // ── Month-wise PIVOT table (months = columns, regions = rows) ──
     const months  = [...new Set(base.map(x=>x.fromDate&&x.fromDate.slice(0,7)).filter(Boolean))].sort();
     const allRegs = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
@@ -1341,6 +1416,37 @@ function rowToArray(r) {
 const RAW_HEADERS = ['Faculty','Emp ID','Center','Region','Leave Type','Duration','Nature','Days','From','Till','Status'];
 
 // ── Build sheets ──────────────────────────────────────────────
+function buildCenterSummarySheet(base) {
+    const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
+    const hdr = ['Region','Center','Total Leave Events','Sudden Leave Events','Sudden Event %','Total Leave Days','Sudden Leave Days','Sudden Days %'];
+    const rows = [hdr];
+    regions.forEach(reg => {
+        const regRows = base.filter(x=>x.region===reg);
+        const centers = [...new Set(regRows.map(x=>x.center).filter(Boolean))].sort();
+        centers.forEach(ctr => {
+            const ctrRows = regRows.filter(x=>x.center===ctr);
+            const te = ctrRows.length;
+            const se = ctrRows.filter(isSudden).length;
+            const td = ctrRows.reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+            const sd = ctrRows.filter(isSudden).reduce((s,r)=>s+(parseFloat(r.actualDays)||1),0);
+            rows.push([
+                reg,
+                ctr.replace(' Vidyapeeth',''),
+                te, se,
+                te ? (se/te*100).toFixed(2)+'%' : '—',
+                fmtDays(td), fmtDays(sd),
+                td ? (sd/td*100).toFixed(2)+'%' : '—'
+            ]);
+        });
+    });
+    const gs = calcStats(base);
+    rows.push(['Grand Total','', gs.totalEvents, gs.suddenEvents,
+        gs.totalEvents?(gs.suddenEvents/gs.totalEvents*100).toFixed(2)+'%':'—',
+        fmtDays(gs.totalDays), fmtDays(gs.suddenDays),
+        gs.totalDays?(gs.suddenDays/gs.totalDays*100).toFixed(2)+'%':'—']);
+    return XLSX.utils.aoa_to_sheet(rows);
+}
+
 function buildRegionSummarySheet(base) {
     const regions = [...new Set(base.map(x=>x.region).filter(Boolean))].sort();
     const hdr = ['Region','Total Leave Events','Sudden Leave Events','Sudden Event %','Total Leave Days','Sudden Leave Days','Sudden Days %'];
@@ -1472,6 +1578,13 @@ function exportRegionSummary() {
     xlsxDownload(wb, 'SD_Region_Summary');
 }
 
+function exportCenterSummary() {
+    const base = getSuddenBase();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, buildCenterSummarySheet(base), 'Center Summary');
+    xlsxDownload(wb, 'SD_Center_Summary');
+}
+
 function exportMonthlyPivot() {
     const base = getSuddenBase();
     const wb = XLSX.utils.book_new();
@@ -1535,6 +1648,7 @@ function exportAllSheets() {
     XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(regRows),      'By Region Records');
     XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(facRows),      'Faculty Records');
     XLSX.utils.book_append_sheet(wb, buildRegionSummarySheet(base),      'SD Region Summary');
+    XLSX.utils.book_append_sheet(wb, buildCenterSummarySheet(base),      'SD Center Summary');
     XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base),       'SD Monthly Pivot');
     XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'SD Weekly Breakdown');
     XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(base),         'SD Records');
