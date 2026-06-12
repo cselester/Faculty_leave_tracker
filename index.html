@@ -330,8 +330,12 @@
         <div class="filters">
             <div class="fgroup"><label>Start date</label><input type="date" id="sd-from" onchange="renderSudden()"></div>
             <div class="fgroup"><label>End date</label><input type="date" id="sd-to" onchange="renderSudden()"></div>
-            <div class="fgroup"><label>Region</label><select id="sd-region" onchange="renderSudden()"><option value="">All</option></select></div>
-            <button class="clear-btn" onclick="clearFilters('sd')">Clear</button>
+            <div class="fgroup"><label>Region</label><select id="sd-region" onchange="onSdRegionChange()"><option value="">All</option></select></div>
+            <div class="fgroup">
+                <label>Centers <small style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label>
+                <select id="sd-centers" multiple style="min-width:220px" onchange="renderSudden()"></select>
+            </div>
+            <button class="clear-btn" onclick="clearSuddenFilters()">Clear</button>
         </div>
 
         <!-- KPIs -->
@@ -533,7 +537,7 @@ async function loadData() {
 
     // FIX: Reset region-tab multi-selects on full reload so initRegionMultiSelects
     // will repopulate them with the fresh data.
-    ['rg-filter-centers','rg-filter-status'].forEach(id => {
+    ['rg-filter-centers','rg-filter-status','sd-centers'].forEach(id => {
         const el = document.getElementById(id); if(el) el.innerHTML = '';
     });
 
@@ -619,6 +623,20 @@ function clearRegionFilters() {
     renderRegion();
 }
 
+function clearSuddenFilters() {
+    ['sd-from','sd-to'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+    const regEl = document.getElementById('sd-region');
+    if(regEl) regEl.value = '';
+    // Rebuild centers with all options (since region was cleared), then deselect all
+    const allCenters = [...new Set(DATA.rows.map(x=>x.center).filter(Boolean))].sort();
+    const cenEl = document.getElementById('sd-centers');
+    if(cenEl) {
+        cenEl.innerHTML = '';
+        allCenters.forEach(v => { const o=document.createElement('option'); o.value=o.text=v; cenEl.appendChild(o); });
+    }
+    renderSudden();
+}
+
 // ── POPULATE FILTERS ──────────────────────────────────────────
 // FIX SUMMARY:
 // The original code called fillMulti() for rg-filter-centers and rg-filter-status
@@ -661,6 +679,8 @@ function populateFilters() {
     fillSingle('tr-region',regions);
     // Sudden Analysis tab
     fillSingle('sd-region',regions);
+    // Initialise sd-centers only when empty (preserves user selections across chunk loads)
+    initSdCenters(centers);
 
     // Initialise region-tab multi-selects only when they are empty (first load or after reset)
     initRegionMultiSelects(centers, statuses);
@@ -671,13 +691,39 @@ function populateFilters() {
 function initRegionMultiSelects(centers, statuses) {
     const cenEl = document.getElementById('rg-filter-centers');
     const stEl  = document.getElementById('rg-filter-status');
-
     if(cenEl && cenEl.options.length === 0) {
         centers.forEach(v => { const o=document.createElement('option'); o.value=o.text=v; cenEl.appendChild(o); });
     }
     if(stEl && stEl.options.length === 0) {
         statuses.forEach(v => { const o=document.createElement('option'); o.value=o.text=v; stEl.appendChild(o); });
     }
+}
+
+// Populate sd-centers only when empty (first load or after reset)
+function initSdCenters(centers) {
+    const el = document.getElementById('sd-centers');
+    if(!el || el.options.length > 0) return;
+    centers.forEach(v => { const o=document.createElement('option'); o.value=o.text=v; el.appendChild(o); });
+}
+
+// When Region changes in Sudden Analysis, rebuild sd-centers scoped to that region,
+// preserving any previously selected centers that still belong to the new scope.
+function onSdRegionChange() {
+    const reg = gv('sd-region');
+    const centers = [...new Set(
+        DATA.rows.filter(x => !reg || x.region===reg).map(x=>x.center).filter(Boolean)
+    )].sort();
+    const el = document.getElementById('sd-centers');
+    if(!el) { renderSudden(); return; }
+    const prev = multiSelected('sd-centers');
+    el.innerHTML = '';
+    centers.forEach(v => {
+        const o = document.createElement('option');
+        o.value = o.text = v;
+        if(prev.includes(v)) o.selected = true;
+        el.appendChild(o);
+    });
+    renderSudden();
 }
 
 // When region dropdown changes, rebuild Centers multi-select scoped to that region.
@@ -1024,6 +1070,8 @@ function renderSudden() {
     r = dateFilter(r,'sd-from','sd-to');
     const selReg = gv('sd-region');
     if(selReg) r = r.filter(x=>x.region===selReg);
+    const selCens = multiSelected('sd-centers');
+    if(selCens.length) r = r.filter(x=>selCens.includes(x.center));
 
     // Base = "To be considered" only (excludes "Not to be considered")
     const base = r.filter(isConsidered);
@@ -1625,6 +1673,8 @@ function getSuddenBase() {
     r = dateFilter(r, 'sd-from', 'sd-to');
     const reg = gv('sd-region');
     if(reg) r = r.filter(x => x.region === reg);
+    const selCens = multiSelected('sd-centers');
+    if(selCens.length) r = r.filter(x => selCens.includes(x.center));
     return r.filter(isConsidered);
 }
 
