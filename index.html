@@ -922,6 +922,9 @@
                 <div class="fgroup"><label>Status</label><select id="ov-status" onchange="renderOverview()">
                         <option value="">All</option>
                     </select></div>
+                <div class="fgroup"><label>Vertical</label><select id="ov-vertical" onchange="renderOverview()">
+                        <option value="">All</option>
+                    </select></div>
                 <button class="clear-btn" onclick="clearFilters('ov')">Clear</button>
             </div>
             <div class="kpi-grid" id="ov-kpis"></div>
@@ -976,6 +979,9 @@
                     <!-- FIX: added onchange="renderRegion()" so filter fires on selection -->
                     <select id="rg-filter-status" multiple style="min-width:180px" onchange="renderRegion()"></select>
                 </div>
+                <div class="fgroup"><label>Vertical</label><select id="rg-vertical" onchange="renderRegion()">
+                        <option value="">All</option>
+                    </select></div>
                 <button class="clear-btn" onclick="clearRegionFilters()">Clear</button>
             </div>
             <div class="kpi-grid" id="rg-kpis"></div>
@@ -1031,6 +1037,9 @@
                 <div class="fgroup"><label>Status</label><select id="ctr-status" onchange="renderCenter()">
                         <option value="">All</option>
                     </select></div>
+                <div class="fgroup"><label>Vertical</label><select id="ctr-vertical" onchange="renderCenter()">
+                        <option value="">All</option>
+                    </select></div>
                 <button class="clear-btn" onclick="clearFilters('ctr')">Clear</button>
             </div>
             <div class="center-pills" id="ctr-pills"></div>
@@ -1074,6 +1083,9 @@
                 <div class="fgroup"><label>Status</label><select id="fl-status" onchange="renderFacultyTable()">
                         <option value="">All</option>
                     </select></div>
+                <div class="fgroup"><label>Vertical</label><select id="fl-vertical" onchange="renderFacultyTable()">
+                        <option value="">All</option>
+                    </select></div>
                 <button class="clear-btn" onclick="clearFilters('fl')">Clear</button>
             </div>
             <div class="card full">
@@ -1112,6 +1124,9 @@
                 </div>
                 <div class="fgroup"><label>To date</label><input type="date" id="tr-to" onchange="renderTrends()"></div>
                 <div class="fgroup"><label>Region</label><select id="tr-region" onchange="renderTrends()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Vertical</label><select id="tr-vertical" onchange="renderTrends()">
                         <option value="">All</option>
                     </select></div>
                 <button class="clear-btn" onclick="clearFilters('tr')">Clear</button>
@@ -1229,6 +1244,29 @@
                                     onmousedown="event.preventDefault();cmsClearAll('sd-centers-cms')">Clear</button>
                             </div>
                             <div class="cms-list" id="sd-centers-cms-list"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="fgroup">
+                    <label>Vertical</label>
+                    <div class="cms-wrap" id="cms-vertical-wrap">
+                        <div class="cms-trigger" id="cms-vertical-trigger" onclick="cmsToggle('sd-vertical-cms')">
+                            <span class="cms-trigger-text placeholder" id="cms-vertical-label">All verticals</span>
+                            <span class="cms-arrow">▼</span>
+                        </div>
+                        <div class="cms-dropdown" id="sd-vertical-cms">
+                            <div class="cms-search-wrap" onmousedown="event.stopPropagation()">
+                                <input class="cms-search" type="text" placeholder="Search verticals…"
+                                    oninput="cmsSearch(this,'sd-vertical-cms')">
+                            </div>
+                            <div class="cms-actions" onmousedown="event.stopPropagation()">
+                                <button class="cms-action-btn"
+                                    onmousedown="event.preventDefault();cmsSelectAll('sd-vertical-cms')">Select
+                                    all</button>
+                                <button class="cms-action-btn"
+                                    onmousedown="event.preventDefault();cmsClearAll('sd-vertical-cms')">Clear</button>
+                            </div>
+                            <div class="cms-list" id="sd-vertical-cms-list"></div>
                         </div>
                     </div>
                 </div>
@@ -1556,6 +1594,7 @@
             const ltypes = [...new Set(r.map(x => x.leaveType).filter(Boolean))].sort();
             const natures = [...new Set(r.map(x => x.nature).filter(Boolean))].sort();
             const statuses = [...new Set(r.map(x => x.status).filter(Boolean))].sort();
+            const verticals = [...new Set(r.map(x => x.vertical).filter(Boolean))].sort();
 
             const fillSingle = (id, vals) => {
                 const el = document.getElementById(id); if (!el) return;
@@ -1566,16 +1605,16 @@
             };
 
             // Overview
-            fillSingle('ov-region', regions); fillSingle('ov-nature', natures); fillSingle('ov-status', statuses);
+            fillSingle('ov-region', regions); fillSingle('ov-nature', natures); fillSingle('ov-status', statuses); fillSingle('ov-vertical', verticals);
             // Region tab — region dropdown only; multi-selects managed by initRegionMultiSelects
-            fillSingle('rg-filter-region', regions);
+            fillSingle('rg-filter-region', regions); fillSingle('rg-vertical', verticals);
             // Center tab
-            fillSingle('ctr-nature', natures); fillSingle('ctr-status', statuses);
+            fillSingle('ctr-nature', natures); fillSingle('ctr-status', statuses); fillSingle('ctr-vertical', verticals);
             // Faculty tab
             fillSingle('fl-region', regions); fillSingle('fl-center', centers);
-            fillSingle('fl-ltype', ltypes); fillSingle('fl-nature', natures); fillSingle('fl-status', statuses);
+            fillSingle('fl-ltype', ltypes); fillSingle('fl-nature', natures); fillSingle('fl-status', statuses); fillSingle('fl-vertical', verticals);
             // Trends tab
-            fillSingle('tr-region', regions);
+            fillSingle('tr-region', regions); fillSingle('tr-vertical', verticals);
             // Sudden Analysis tab — use custom CMS dropdowns
             initSdCms();
 
@@ -1708,14 +1747,14 @@
         function cmsUpdateTrigger(cmsId) {
             const state = CMS_STATE[cmsId]; if (!state) return;
             const sel = state.options.filter(o => o.checked);
-            const labelMap = { 'sd-region-cms': 'cms-region-label', 'sd-centers-cms': 'cms-centers-label' };
+            const labelMap = { 'sd-region-cms': 'cms-region-label', 'sd-centers-cms': 'cms-centers-label', 'sd-vertical-cms': 'cms-vertical-label' };
             const lEl = document.getElementById(labelMap[cmsId]);
             if (!lEl) return;
             const trig = lEl.closest('.cms-trigger');
             // Remove any existing badge first
             trig?.querySelector('.cms-badge')?.remove();
             if (sel.length === 0) {
-                lEl.textContent = cmsId.includes('region') ? 'All regions' : 'All centers';
+                lEl.textContent = cmsId.includes('region') ? 'All regions' : cmsId.includes('vertical') ? 'All verticals' : 'All centers';
                 lEl.className = 'cms-trigger-text placeholder';
             } else if (sel.length === 1) {
                 lEl.textContent = String(sel[0].val).replace(' Vidyapeeth', '');
@@ -1736,6 +1775,7 @@
         function initSdCms() {
             const regions = [...new Set(DATA.rows.map(x => x.region).filter(Boolean))].sort();
             const centers = [...new Set(DATA.rows.map(x => x.center).filter(Boolean))].sort();
+            const verticals = [...new Set(DATA.rows.map(x => x.vertical).filter(Boolean))].sort();
             if (!CMS_STATE['sd-region-cms']) {
                 cmsInit('sd-region-cms', regions, () => onSdRegionChange());
             } else {
@@ -1745,6 +1785,11 @@
                 cmsInit('sd-centers-cms', centers, () => renderSudden());
             } else {
                 cmsSetOptions('sd-centers-cms', centers, true);
+            }
+            if (!CMS_STATE['sd-vertical-cms']) {
+                cmsInit('sd-vertical-cms', verticals, () => renderSudden());
+            } else {
+                cmsSetOptions('sd-vertical-cms', verticals, true);
             }
         }
 
@@ -1818,10 +1863,11 @@
         function renderOverview() {
             let r = DATA.rows;
             r = dateFilter(r, 'ov-from', 'ov-to');
-            const reg = gv('ov-region'), nat = gv('ov-nature'), st = gv('ov-status');
+            const reg = gv('ov-region'), nat = gv('ov-nature'), st = gv('ov-status'), ovVert = gv('ov-vertical');
             if (reg) r = r.filter(x => x.region === reg);
             if (nat) r = r.filter(x => x.nature === nat);
             if (st) r = r.filter(x => x.status === st);
+            if (ovVert) r = r.filter(x => x.vertical === ovVert);
             const totalDays = r.reduce((a, x) => a + (parseFloat(x.actualDays) || 1), 0);
             const uniqueFac = new Set(r.map(x => x.faculty)).size;
             const sudden = r.filter(x => x.nature === 'Sudden').length;
@@ -1855,6 +1901,7 @@
             if (selReg) r = r.filter(x => x.region === selReg);
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
             if (selSts.length) r = r.filter(x => selSts.includes(x.status));
+            const rgVert = gv('rg-vertical'); if (rgVert) r = r.filter(x => x.vertical === rgVert);
 
             const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
             const topReg = regions.slice().sort((a, b) => sumDays(r, b, 'region') - sumDays(r, a, 'region'))[0] || '';
@@ -1896,9 +1943,10 @@
         function renderCenter() {
             let d = DATA.rows.filter(r => r.center === selCenter);
             d = dateFilter(d, 'ctr-from', 'ctr-to');
-            const nat = gv('ctr-nature'), st = gv('ctr-status');
+            const nat = gv('ctr-nature'), st = gv('ctr-status'), ctrVert = gv('ctr-vertical');
             if (nat) d = d.filter(r => r.nature === nat);
             if (st) d = d.filter(r => r.status === st);
+            if (ctrVert) d = d.filter(r => r.vertical === ctrVert);
             const totalDays = d.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
             const unique = new Set(d.map(r => r.faculty)).size;
             const sudden = d.filter(r => r.nature === 'Sudden').length;
@@ -1924,12 +1972,13 @@
         function renderFacultyTable() {
             let d = DATA.rows;
             d = dateFilter(d, 'fl-from', 'fl-to');
-            const reg = gv('fl-region'), cen = gv('fl-center'), lt = gv('fl-ltype'), nat = gv('fl-nature'), st = gv('fl-status');
+            const reg = gv('fl-region'), cen = gv('fl-center'), lt = gv('fl-ltype'), nat = gv('fl-nature'), st = gv('fl-status'), flVert = gv('fl-vertical');
             if (reg) d = d.filter(r => r.region === reg);
             if (cen) d = d.filter(r => r.center === cen);
             if (lt) d = d.filter(r => r.leaveType === lt);
             if (nat) d = d.filter(r => r.nature === nat);
             if (st) d = d.filter(r => r.status === st);
+            if (flVert) d = d.filter(r => r.vertical === flVert);
             document.getElementById('fac-count').textContent = '(' + d.length + ' records)';
             document.getElementById('fac-tbody').innerHTML = d.slice(0, 200).map(r => `<tr>
     <td><strong>${r.faculty || '—'}</strong></td>
@@ -1963,8 +2012,9 @@
         function renderTrends() {
             let r = DATA.rows;
             r = dateFilter(r, 'tr-from', 'tr-to');
-            const reg = gv('tr-region');
+            const reg = gv('tr-region'), trVert = gv('tr-vertical');
             if (reg) r = r.filter(x => x.region === reg);
+            if (trVert) r = r.filter(x => x.vertical === trVert);
             _trendsData = r;
 
             const totalDays = r.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
@@ -2717,6 +2767,8 @@
             if (selRegs.length) r = r.filter(x => selRegs.includes(x.region));
             const selCens = cmsGetSelected('sd-centers-cms');
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
+            const selVerts = cmsGetSelected('sd-vertical-cms');
+            if (selVerts.length) r = r.filter(x => selVerts.includes(x.vertical));
             return r.filter(isConsidered);
         }
 
@@ -2724,12 +2776,13 @@
         function getFacultyFiltered() {
             let d = DATA.rows;
             d = dateFilter(d, 'fl-from', 'fl-to');
-            const reg = gv('fl-region'), cen = gv('fl-center'), lt = gv('fl-ltype'), nat = gv('fl-nature'), st = gv('fl-status');
+            const reg = gv('fl-region'), cen = gv('fl-center'), lt = gv('fl-ltype'), nat = gv('fl-nature'), st = gv('fl-status'), flVert = gv('fl-vertical');
             if (reg) d = d.filter(r => r.region === reg);
             if (cen) d = d.filter(r => r.center === cen);
             if (lt) d = d.filter(r => r.leaveType === lt);
             if (nat) d = d.filter(r => r.nature === nat);
             if (st) d = d.filter(r => r.status === st);
+            if (flVert) d = d.filter(r => r.vertical === flVert);
             return d;
         }
 
