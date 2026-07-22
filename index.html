@@ -2171,6 +2171,8 @@
             if (selRegs.length) r = r.filter(x => selRegs.includes(x.region));
             const selCens = cmsGetSelected('sd-centers-cms');
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
+            const selVerts = cmsGetSelected('sd-vertical-cms');
+            if (selVerts.length) r = r.filter(x => selVerts.includes(x.vertical));
 
             // Base = "To be considered" only (excludes "Not to be considered")
             const base = r.filter(isConsidered);
