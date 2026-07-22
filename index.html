@@ -1364,7 +1364,7 @@
             <!-- Filtered raw records (status = to be considered) -->
             <div class="card full" style="margin-bottom:16px">
                 <div class="card-hdr">
-                    <h3>Records — status: "To be considered" <span id="sd-rec-count"
+                    <h3>Records — excl. "Not to be considered" <span id="sd-rec-count"
                             style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
                     <button class="export-btn" onclick="exportSuddenRecords()">⬇ Export</button>
                 </div>
@@ -1393,7 +1393,7 @@
             <div class="card full">
                 <div class="card-hdr">
                     <div class="card-hdr-left">
-                        <h3>Employee leave summary — "To be considered" only</h3>
+                        <h3>Employee leave summary — excl. "Not to be considered"</h3>
                         <span id="sd-emp-count" style="font-weight:400;color:var(--text3);font-size:12px"></span>
                         <span style="font-weight:400;color:var(--text3);font-size:11px">Sorted by total leave days
                             ↓</span>
@@ -2120,10 +2120,17 @@
 
         // ── SUDDEN ANALYSIS ───────────────────────────────────────────
         function isSudden(r) { return (r.nature || '').toLowerCase() === 'sudden'; }
-        // Only "To be considered" records count — "Not to be considered" excluded
+        // Exclude only rows explicitly marked "Not to be considered".
+        // Blank status = not yet reviewed = include (treated as pending/to be considered).
         function isConsidered(r) {
-            const s = (r.status || '').toLowerCase();
-            return s.includes('consider') && !s.includes('not');
+            const s = (r.status || '').toLowerCase().trim();
+            // Explicitly excluded statuses
+            if (s === 'not to be considered') return false;
+            if (s.startsWith('not to be')) return false;
+            if (s === 'rejected') return false;
+            if (s === 'revoked') return false;
+            // Everything else (blank, "to be considered", "approved", etc.) is included
+            return true;
         }
 
         function pctFmt(num, den) {
@@ -2174,9 +2181,9 @@
             // ── KPIs (all from considered base) ──────────────────────
             const all = calcStats(r);   // calcStats already filters to considered internally
             setKPIs('sd-kpis', [
-                { label: 'Total leave events', val: all.totalEvents, sub: 'Status: To be considered', cls: 'blue' },
+                { label: 'Total leave events', val: all.totalEvents, sub: 'Excl. Not to be considered', cls: 'blue' },
                 { label: 'Sudden events', val: all.suddenEvents, sub: pctFmt(all.suddenEvents, all.totalEvents).replace(/<[^>]+>/g, '') + ' of total', cls: 'coral' },
-                { label: 'Total leave days', val: fmtDays(all.totalDays), sub: 'Considered records only', cls: 'purple' },
+                { label: 'Total leave days', val: fmtDays(all.totalDays), sub: 'Excl. Not to be considered', cls: 'purple' },
                 { label: 'Sudden leave days', val: fmtDays(all.suddenDays), sub: pctFmt(all.suddenDays, all.totalDays).replace(/<[^>]+>/g, '') + ' of days', cls: 'amber' },
                 { label: 'Regions in view', val: [...new Set(base.map(x => x.region).filter(Boolean))].length, sub: 'With considered leaves', cls: 'green' },
             ]);
@@ -2412,7 +2419,7 @@
         <td style="font-size:11px">${row.fromDate || '—'}</td>
         <td style="font-size:11px">${row.tillDate || '—'}</td>
         <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
-    </tr>`).join('') || '<tr><td colspan="10" class="empty">No "To be considered" records in range.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="10" class="empty">No records in range.</td></tr>';
 
             // ── Employee-level summary ────────────────────────────────
             // Group base (already "to be considered" only) by unique PW ID (empId).
@@ -2584,7 +2591,7 @@
         function buildWeeklyPivot(base, fromStr, toStr) {
             const el = document.getElementById('sd-weekly-pivot');
             if (!el) return;
-            if (!base.length) { el.innerHTML = '<p class="empty">No "To be considered" data in range.</p>'; return; }
+            if (!base.length) { el.innerHTML = '<p class="empty">No data in range.</p>'; return; }
 
             // ── Date range ────────────────────────────────────────────
             const allDates = base.map(r => r.fromDate).filter(Boolean).sort();
@@ -2712,6 +2719,8 @@
         <tbody>${bodyHtml}</tbody>
     </table>`;
         }
+
+
 
         // ── CHART HELPERS ─────────────────────────────────────────────
         function makeChart(id, type, cfg, lgEl, lgLabels, lgColors, extra = {}) {
