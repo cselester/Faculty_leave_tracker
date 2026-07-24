@@ -904,6 +904,7 @@
             <div class="tab" data-tab="faculty">Faculty tracker</div>
             <div class="tab" data-tab="trends">Trends</div>
             <div class="tab" data-tab="sudden">Sudden Analysis</div>
+            <div class="tab" data-tab="manual">Manual Entry</div>
         </div>
 
         <!-- OVERVIEW -->
@@ -971,12 +972,10 @@
                 </div>
                 <div class="fgroup">
                     <label>Centers <small style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label>
-                    <!-- FIX: added onchange="renderRegion()" so filter fires on selection -->
                     <select id="rg-filter-centers" multiple style="min-width:200px" onchange="renderRegion()"></select>
                 </div>
                 <div class="fgroup">
                     <label>Status <small style="font-weight:400;color:var(--text3)">(ctrl+click)</small></label>
-                    <!-- FIX: added onchange="renderRegion()" so filter fires on selection -->
                     <select id="rg-filter-status" multiple style="min-width:180px" onchange="renderRegion()"></select>
                 </div>
                 <div class="fgroup"><label>Vertical</label><select id="rg-vertical" onchange="renderRegion()">
@@ -1013,7 +1012,9 @@
                                     <th>Leave type</th>
                                     <th>Nature</th>
                                     <th>Days</th>
+                                    <th>Info Date</th>
                                     <th>From</th>
+                                    <th>Half Day</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -1106,8 +1107,10 @@
                                 <th>Duration</th>
                                 <th>Nature</th>
                                 <th>Days</th>
+                                <th>Info Date</th>
                                 <th>From</th>
                                 <th>Till</th>
+                                <th>Half Day</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -1270,6 +1273,29 @@
                         </div>
                     </div>
                 </div>
+                <div class="fgroup">
+                    <label>Status</label>
+                    <div class="cms-wrap" id="cms-status-wrap">
+                        <div class="cms-trigger" id="cms-status-trigger" onclick="cmsToggle('sd-status-cms')">
+                            <span class="cms-trigger-text placeholder" id="cms-status-label">All statuses</span>
+                            <span class="cms-arrow">▼</span>
+                        </div>
+                        <div class="cms-dropdown" id="sd-status-cms">
+                            <div class="cms-search-wrap" onmousedown="event.stopPropagation()">
+                                <input class="cms-search" type="text" placeholder="Search statuses…"
+                                    oninput="cmsSearch(this,'sd-status-cms')">
+                            </div>
+                            <div class="cms-actions" onmousedown="event.stopPropagation()">
+                                <button class="cms-action-btn"
+                                    onmousedown="event.preventDefault();cmsSelectAll('sd-status-cms')">Select
+                                    all</button>
+                                <button class="cms-action-btn"
+                                    onmousedown="event.preventDefault();cmsClearAll('sd-status-cms')">Clear</button>
+                            </div>
+                            <div class="cms-list" id="sd-status-cms-list"></div>
+                        </div>
+                    </div>
+                </div>
                 <button class="clear-btn" onclick="clearSuddenFilters()">Clear all</button>
             </div>
 
@@ -1379,8 +1405,10 @@
                                 <th>Leave type</th>
                                 <th>Nature</th>
                                 <th>Days</th>
+                                <th>Info Date</th>
                                 <th>From</th>
                                 <th>Till</th>
+                                <th>Half Day</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -1418,6 +1446,114 @@
                             </tr>
                         </thead>
                         <tbody id="sd-emp-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANUAL ENTRY -->
+        <div id="pane-manual" class="tab-pane">
+            <div class="filters">
+                <div class="fgroup"><label>From date</label><input type="date" id="mn-from" onchange="renderManual()">
+                </div>
+                <div class="fgroup"><label>To date</label><input type="date" id="mn-to" onchange="renderManual()">
+                </div>
+                <div class="fgroup"><label>Region</label><select id="mn-region" onchange="onManualRegionChange()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Center</label><select id="mn-center" onchange="renderManual()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Leave type</label><select id="mn-ltype" onchange="renderManual()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Nature</label><select id="mn-nature" onchange="renderManual()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Status</label><select id="mn-status" onchange="renderManual()">
+                        <option value="">All</option>
+                    </select></div>
+                <div class="fgroup"><label>Vertical</label><select id="mn-vertical" onchange="renderManual()">
+                        <option value="">All</option>
+                    </select></div>
+                <button class="clear-btn" onclick="clearFilters('mn')">Clear</button>
+            </div>
+            <div class="kpi-grid" id="mn-kpis"></div>
+            <div class="chart-grid">
+                <div class="card">
+                    <h3>Leave type distribution</h3>
+                    <div class="legend" id="lg-mn-type"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-mn-type"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Nature of leave</h3>
+                    <div class="legend" id="lg-mn-nature"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-mn-nature"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Approval status</h3>
+                    <div class="legend" id="lg-mn-status"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-mn-status"></canvas></div>
+                </div>
+                <div class="card">
+                    <h3>Leave days by region</h3>
+                    <div class="legend" id="lg-mn-region"></div>
+                    <div style="position:relative;height:220px"><canvas id="ch-mn-region"></canvas></div>
+                </div>
+                <div class="card full">
+                    <h3>Monthly leave days — manual entries</h3>
+                    <div style="position:relative;height:240px"><canvas id="ch-mn-monthly"></canvas></div>
+                </div>
+            </div>
+            <div class="card full" style="margin-bottom:16px">
+                <div class="card-hdr">
+                    <h3>Center summary — manual entries <span
+                            style="font-weight:400;color:var(--text3);font-size:12px">grouped by region</span></h3>
+                    <button class="export-btn" onclick="exportManualCenterSummary()">⬇ Export</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Center</th>
+                                <th style="text-align:right">Entries</th>
+                                <th style="text-align:right">Leave Days</th>
+                                <th style="text-align:right">Sudden</th>
+                                <th style="text-align:right">Sudden %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mn-center-body"></tbody>
+                        <tfoot id="mn-center-foot"></tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="card full">
+                <div class="card-hdr">
+                    <h3>Manual entry records <span id="mn-count"
+                            style="font-weight:400;color:var(--text3);margin-left:8px"></span></h3>
+                    <button class="export-btn" onclick="exportManualRecords()">⬇ Export</button>
+                </div>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Faculty</th>
+                                <th>Emp ID</th>
+                                <th>Center</th>
+                                <th>Region</th>
+                                <th>Leave type</th>
+                                <th>Duration</th>
+                                <th>Nature</th>
+                                <th>Days</th>
+                                <th>Info Date</th>
+                                <th>From</th>
+                                <th>Till</th>
+                                <th>Half Day</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mn-tbody"></tbody>
                     </table>
                 </div>
             </div>
@@ -1470,57 +1606,131 @@
 
         async function loadData() {
             const url = getApiUrl();
-            if (!url) { setStatus('err', 'No URL — paste your Web App URL above'); return; }
+            if (!url) { setStatus('err', 'No URL \u2014 paste your Web App URL above'); return; }
             document.getElementById('apiUrl').value = url;
-            setStatus('', '🔗 Connecting…'); setSyncDot(false);
+            setStatus('', '\ud83d\udd17 Connecting\u2026'); setSyncDot(false);
             const myId = ++_loadId;
             DATA = { rows: [], summary: null, centers: [] };
             REGION_MAP = {};
 
-            // FIX: Reset region-tab multi-selects on full reload so initRegionMultiSelects
+            // Reset region-tab multi-selects on full reload so initRegionMultiSelects
             // will repopulate them with the fresh data.
             ['rg-filter-centers', 'rg-filter-status'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.innerHTML = '';
             });
 
+            // Fetch with a hard timeout + retry \u2014 a hung Apps Script request can no
+            // longer stall the whole load (this is what made loading stop mid-way).
+            async function fetchJSON(u, timeoutMs = 120000, retries = 1) {
+                for (let attempt = 0; attempt <= retries; attempt++) {
+                    const ctrl = new AbortController();
+                    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+                    try {
+                        const res = await fetch(u, { signal: ctrl.signal });
+                        clearTimeout(t);
+                        return await res.json();
+                    } catch (e) {
+                        clearTimeout(t);
+                        if (attempt === retries) throw e;
+                    }
+                }
+            }
+
+            function progressiveRender() {
+                DATA.centers = [...new Set(DATA.rows.map(r => r.center).filter(Boolean))];
+                normaliseRows(DATA.rows);
+                populateFilters();
+                renderCurrentTab(document.querySelector('.tab.active')?.dataset.tab || 'overview');
+                setSyncDot(true);
+            }
+
             try {
-                const centRes = await fetch(url + '?action=centers').then(r => r.json());
+                const centRes = await fetchJSON(url + '?action=centers');
                 if (myId !== _loadId) return;
                 if (!centRes.ok) throw new Error(centRes.error || 'Could not load center list');
 
-                const rawRegions = [...new Set(centRes.data.map(c => c.region).filter(r => r && r !== '#N/A'))];
-                const seenKeys = new Set();
-                const regions = rawRegions.filter(r => { const k = regionKey(r); if (seenKeys.has(k)) return false; seenKeys.add(k); return true; });
-                const totalRegions = regions.length;
-                setStatus('', `Loading region 0 / ${totalRegions}…`);
-
-                let loaded = 0;
-                for (const region of regions) {
+                // FAST PATH: the backend keeps a pre-synced "_Consolidated" cache
+                // sheet (built by a background trigger). One request returns the
+                // entire dataset in seconds. If the cache isn't built yet, fall
+                // through to per-center live loading below.
+                try {
+                    setStatus('', 'Fetching consolidated data\u2026');
+                    const all = await fetchJSON(url + '?action=all', 180000, 0);
                     if (myId !== _loadId) return;
-                    try {
-                        const res = await fetch(url + '?action=all&region=' + encodeURIComponent(region)).then(r => r.json());
+                    if (all.ok && all.data && all.data.rows && all.data.rows.length) {
+                        all.data.rows.forEach(r => DATA.rows.push(r));
+                        progressiveRender();
+                        const syncTs = all.data.lastFullSync ? new Date(all.data.lastFullSync) : new Date();
+                        document.getElementById('syncTime').textContent = syncTs.toLocaleString('en-IN');
+                        setStatus('ok', `Connected \u2014 ${DATA.rows.length} records across ${DATA.centers.length} centers` + (all.data.cached ? ' (synced cache)' : ''));
+                        setSyncDot(true);
+                        return;
+                    }
+                } catch (e) { /* cache unavailable \u2014 use per-center live loading */ }
+                if (myId !== _loadId) return;
+
+                // One request per CENTER instead of per region.
+                // Big regions could exceed the Apps Script ~6-minute execution limit,
+                // so their request died or hung and loading stopped part-way through.
+                // Center requests open a single spreadsheet each and finish in seconds.
+                const centerList = centRes.data.filter(c => c.name && c.sheetId);
+                const total = centerList.length;
+                let done = 0;
+                const failed = [];
+
+                async function loadCenter(name, timeoutMs, retries) {
+                    const res = await fetchJSON(url + '?action=all&center=' + encodeURIComponent(name), timeoutMs, retries);
+                    if (res && res.ok && res.data && res.data.rows) {
+                        res.data.rows.forEach(r => DATA.rows.push(r));
+                        return true;
+                    }
+                    return false;
+                }
+
+                // Concurrency pool: 5 parallel center requests (well under the
+                // Apps Script simultaneous-execution limit of 30)
+                const POOL = 5;
+                let idx = 0;
+                async function worker() {
+                    while (idx < centerList.length) {
                         if (myId !== _loadId) return;
-                        if (res.ok && res.data && res.data.rows) {
-                            res.data.rows.forEach(r => DATA.rows.push(r));
-                            DATA.centers = [...new Set(DATA.rows.map(r => r.center).filter(Boolean))];
-                        }
-                    } catch (e) { }
-                    loaded++;
-                    setStatus('', `Loading region ${loaded} / ${totalRegions} — ${DATA.rows.length} records so far…`);
-                    if (DATA.rows.length > 0) {
-                        normaliseRows(DATA.rows);
-                        populateFilters();
-                        renderCurrentTab('overview');
-                        if (loaded === 1) setSyncDot(true);
+                        const c = centerList[idx++];
+                        try {
+                            const ok = await loadCenter(c.name, 120000, 1);
+                            if (!ok) failed.push(c.name);
+                        } catch (e) { failed.push(c.name); }
+                        if (myId !== _loadId) return;
+                        done++;
+                        setStatus('', `Loading center ${done} / ${total} \u2014 ${DATA.rows.length} records so far\u2026`);
+                        if (done % 10 === 0 && DATA.rows.length > 0) progressiveRender();
+                    }
+                }
+                await Promise.all(Array.from({ length: Math.min(POOL, Math.max(centerList.length, 1)) }, worker));
+                if (myId !== _loadId) return;
+
+                // One sequential retry pass for anything that failed
+                if (failed.length) {
+                    const retryList = failed.splice(0, failed.length);
+                    for (const name of retryList) {
+                        if (myId !== _loadId) return;
+                        setStatus('', `Retrying ${retryList.length} failed center(s)\u2026 ${DATA.rows.length} records so far`);
+                        try {
+                            const ok = await loadCenter(name, 150000, 0);
+                            if (!ok) failed.push(name);
+                        } catch (e) { failed.push(name); }
                     }
                 }
                 if (myId !== _loadId) return;
-                normaliseRows(DATA.rows);
-                setStatus('ok', `Connected — ${DATA.rows.length} records across ${DATA.centers.length} centers`);
-                setSyncDot(true);
+
+                progressiveRender();
                 document.getElementById('syncTime').textContent = new Date().toLocaleString('en-IN');
-                populateFilters();
-                renderCurrentTab('overview');
+                if (failed.length) {
+                    console.warn('Centers that failed to load:', failed);
+                    setStatus('err', `Loaded ${DATA.rows.length} records \u2014 ${failed.length} center(s) failed (names in browser console). Click Refresh to retry.`);
+                } else {
+                    setStatus('ok', `Connected \u2014 ${DATA.rows.length} records across ${DATA.centers.length} centers`);
+                }
+                setSyncDot(true);
             } catch (e) {
                 if (myId !== _loadId) return;
                 setStatus('err', 'Error: ' + e.message); setSyncDot(false);
@@ -1548,7 +1758,7 @@
             return [...el.selectedOptions].map(o => o.value).filter(Boolean);
         }
         function clearFilters(prefix) {
-            ['from', 'to', 'region', 'nature', 'status', 'ltype', 'center'].forEach(s => {
+            ['from', 'to', 'region', 'nature', 'status', 'ltype', 'center', 'vertical'].forEach(s => {
                 const el = document.getElementById(prefix + '-' + s); if (!el) return;
                 if (el.tagName === 'SELECT' && el.multiple) { [...el.options].forEach(o => o.selected = false); }
                 else { el.value = ''; }
@@ -1557,7 +1767,7 @@
         }
         function clearRegionFilters() {
             ['rg-from', 'rg-to'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-            ['rg-filter-region', 'rg-filter-centers', 'rg-filter-status'].forEach(id => {
+            ['rg-filter-region', 'rg-filter-centers', 'rg-filter-status', 'rg-vertical'].forEach(id => {
                 const el = document.getElementById(id); if (!el) return;
                 if (el.multiple) { [...el.options].forEach(o => o.selected = false); }
                 else el.value = '';
@@ -1571,22 +1781,12 @@
             // Restore all centers then clear
             const allCenters = [...new Set(DATA.rows.map(x => x.center).filter(Boolean))].sort();
             cmsSetOptions('sd-centers-cms', allCenters, false);
+            cmsClearAll('sd-vertical-cms');
+            cmsClearAll('sd-status-cms');
             renderSudden();
         }
 
         // ── POPULATE FILTERS ──────────────────────────────────────────
-        // FIX SUMMARY:
-        // The original code called fillMulti() for rg-filter-centers and rg-filter-status
-        // on every populateFilters() call (which happens after every region chunk loads).
-        // fillMulti() rebuilt the option list, which destroyed any existing user selections.
-        //
-        // New approach:
-        //   • populateFilters() only touches the single-select dropdowns.
-        //   • Region-tab multi-selects (centers + status) are populated ONCE via
-        //     initRegionMultiSelects(), which skips if options already exist.
-        //   • onRegionFilterChange() rebuilds the Centers list when the region dropdown
-        //     changes, restoring any previously selected centers that still belong to
-        //     the new region scope.
         function populateFilters() {
             const r = DATA.rows;
             const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
@@ -1618,6 +1818,15 @@
             // Sudden Analysis tab — use custom CMS dropdowns
             initSdCms();
 
+            // Manual Entry tab — options from manual-entry rows only
+            const mrows = r.filter(isManual);
+            fillSingle('mn-region', [...new Set(mrows.map(x => x.region).filter(Boolean))].sort());
+            fillSingle('mn-center', [...new Set(mrows.map(x => x.center).filter(Boolean))].sort());
+            fillSingle('mn-ltype', [...new Set(mrows.map(x => x.leaveType).filter(Boolean))].sort());
+            fillSingle('mn-nature', [...new Set(mrows.map(x => x.nature).filter(Boolean))].sort());
+            fillSingle('mn-status', [...new Set(mrows.map(x => x.status).filter(Boolean))].sort());
+            fillSingle('mn-vertical', [...new Set(mrows.map(x => x.vertical).filter(Boolean))].sort());
+
             // Initialise region-tab multi-selects only when they are empty (first load or after reset)
             initRegionMultiSelects(centers, statuses);
         }
@@ -1636,8 +1845,6 @@
         }
 
         // ── CUSTOM MULTI-SELECT (CMS) ENGINE ─────────────────────────
-        // A reusable dropdown-with-checkboxes component.
-        // State lives in CMS_STATE[cmsId] = { options: [{val,label,visible,checked}] }
         const CMS_STATE = {};
 
         function cmsInit(cmsId, options, onChange) {
@@ -1654,7 +1861,6 @@
             const visible = state.options.filter(o => o.visible);
             if (!visible.length) { list.innerHTML = '<div class="cms-empty">No results</div>'; return; }
             const allChecked = state.options.length > 0 && state.options.every(o => o.checked);
-            // Use data-idx (index into state.options) — avoids ALL string-escaping issues
             list.innerHTML =
                 `<div class="cms-item all-item ${allChecked ? 'checked' : ''}" data-all="1">
             <div class="cms-checkbox"></div>
@@ -1669,7 +1875,6 @@
                 }).join('');
         }
 
-        // Attach delegated mousedown listener to a list — called once per CMS instance
         function cmsBindList(cmsId) {
             const list = document.getElementById(cmsId + '-list');
             if (!list) return;
@@ -1680,7 +1885,6 @@
                 if (!item) return;
                 const state = CMS_STATE[cmsId]; if (!state) return;
                 if (item.dataset.all) {
-                    // Toggle all
                     const allChecked = state.options.every(o => o.checked);
                     state.options.forEach(o => o.checked = !allChecked);
                 } else if (item.dataset.idx !== undefined) {
@@ -1698,7 +1902,6 @@
             const trigger = drop?.previousElementSibling;
             if (!drop) return;
             const isOpen = drop.classList.contains('open');
-            // Close all other open dropdowns
             document.querySelectorAll('.cms-dropdown.open').forEach(d => {
                 if (d.id !== cmsId) { d.classList.remove('open'); d.previousElementSibling?.classList.remove('open'); }
             });
@@ -1747,14 +1950,13 @@
         function cmsUpdateTrigger(cmsId) {
             const state = CMS_STATE[cmsId]; if (!state) return;
             const sel = state.options.filter(o => o.checked);
-            const labelMap = { 'sd-region-cms': 'cms-region-label', 'sd-centers-cms': 'cms-centers-label', 'sd-vertical-cms': 'cms-vertical-label' };
+            const labelMap = { 'sd-region-cms': 'cms-region-label', 'sd-centers-cms': 'cms-centers-label', 'sd-vertical-cms': 'cms-vertical-label', 'sd-status-cms': 'cms-status-label' };
             const lEl = document.getElementById(labelMap[cmsId]);
             if (!lEl) return;
             const trig = lEl.closest('.cms-trigger');
-            // Remove any existing badge first
             trig?.querySelector('.cms-badge')?.remove();
             if (sel.length === 0) {
-                lEl.textContent = cmsId.includes('region') ? 'All regions' : cmsId.includes('vertical') ? 'All verticals' : 'All centers';
+                lEl.textContent = cmsId.includes('region') ? 'All regions' : cmsId.includes('vertical') ? 'All verticals' : cmsId.includes('status') ? 'All statuses' : 'All centers';
                 lEl.className = 'cms-trigger-text placeholder';
             } else if (sel.length === 1) {
                 lEl.textContent = String(sel[0].val).replace(' Vidyapeeth', '');
@@ -1771,7 +1973,7 @@
             }
         }
 
-        // Initialise the two Sudden Analysis CMS dropdowns
+        // Initialise the Sudden Analysis CMS dropdowns
         function initSdCms() {
             const regions = [...new Set(DATA.rows.map(x => x.region).filter(Boolean))].sort();
             const centers = [...new Set(DATA.rows.map(x => x.center).filter(Boolean))].sort();
@@ -1790,6 +1992,12 @@
                 cmsInit('sd-vertical-cms', verticals, () => renderSudden());
             } else {
                 cmsSetOptions('sd-vertical-cms', verticals, true);
+            }
+            const statuses = [...new Set(DATA.rows.map(x => x.status).filter(Boolean))].sort();
+            if (!CMS_STATE['sd-status-cms']) {
+                cmsInit('sd-status-cms', statuses, () => renderSudden());
+            } else {
+                cmsSetOptions('sd-status-cms', statuses, true);
             }
         }
 
@@ -1814,7 +2022,6 @@
         });
 
         // When region dropdown changes, rebuild Centers multi-select scoped to that region.
-        // Preserve any previously selected centers that still exist in the new scope.
         function onRegionFilterChange() {
             const reg = gv('rg-filter-region');
             const centers = [...new Set(
@@ -1857,6 +2064,7 @@
             else if (name === 'faculty') renderFacultyTable();
             else if (name === 'trends') renderTrends();
             else if (name === 'sudden') renderSudden();
+            else if (name === 'manual') renderManual();
         }
 
         // ── OVERVIEW ──────────────────────────────────────────────────
@@ -1895,8 +2103,8 @@
             r = dateFilter(r, 'rg-from', 'rg-to');
 
             const selReg = gv('rg-filter-region');
-            const selCens = multiSelected('rg-filter-centers');  // FIX: now wired up with onchange
-            const selSts = multiSelected('rg-filter-status');   // FIX: now wired up with onchange
+            const selCens = multiSelected('rg-filter-centers');
+            const selSts = multiSelected('rg-filter-status');
 
             if (selReg) r = r.filter(x => x.region === selReg);
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
@@ -1928,9 +2136,11 @@
     <td style="font-size:12px">${row.leaveType || '—'}</td>
     <td><span class="badge b-${(row.nature || '').toLowerCase()}">${row.nature || '—'}</span></td>
     <td style="font-weight:600">${row.actualDays || 1}</td>
+    <td style="font-size:11px">${row.infoDate || '—'}</td>
     <td style="font-size:11px">${row.fromDate || '—'}</td>
+    <td style="font-size:11px">${row.halfDay || '—'}</td>
     <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
-  </tr>`).join('') || '<tr><td colspan="9" class="empty">No records match filters.</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="11" class="empty">No records match filters.</td></tr>';
         }
 
         // ── BY CENTER ─────────────────────────────────────────────────
@@ -1989,10 +2199,12 @@
     <td style="font-size:12px">${r.duration || '—'}</td>
     <td><span class="badge b-${(r.nature || '').toLowerCase()}">${r.nature || '—'}</span></td>
     <td style="font-weight:600">${r.actualDays || 1}</td>
+    <td style="font-size:11px">${r.infoDate || '—'}</td>
     <td style="font-size:11px">${r.fromDate || '—'}</td>
     <td style="font-size:11px">${r.tillDate || '—'}</td>
+    <td style="font-size:11px">${r.halfDay || '—'}</td>
     <td><span class="badge b-${statusClass(r.status)}">${r.status || '—'}</span></td>
-  </tr>`).join('') || '<tr><td colspan="11" class="empty">No records match filters.</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="13" class="empty">No records match filters.</td></tr>';
         }
 
         function statusClass(s) {
@@ -2005,8 +2217,117 @@
             return 'considered';
         }
 
+        // ── MANUAL ENTRY TAB ──────────────────────────────────────
+        // Rows whose sourceSheet starts with "Manual" (the Manual Entry sheet in each center file)
+        function isManual(r) { return (r.sourceSheet || '').toLowerCase().startsWith('manual'); }
+
+        function getManualFiltered() {
+            let d = DATA.rows.filter(isManual);
+            d = dateFilter(d, 'mn-from', 'mn-to');
+            const reg = gv('mn-region'), cen = gv('mn-center'), lt = gv('mn-ltype'), nat = gv('mn-nature'), st = gv('mn-status'), vert = gv('mn-vertical');
+            if (reg) d = d.filter(r => r.region === reg);
+            if (cen) d = d.filter(r => r.center === cen);
+            if (lt) d = d.filter(r => r.leaveType === lt);
+            if (nat) d = d.filter(r => r.nature === nat);
+            if (st) d = d.filter(r => r.status === st);
+            if (vert) d = d.filter(r => r.vertical === vert);
+            return d;
+        }
+
+        function onManualRegionChange() {
+            const reg = gv('mn-region');
+            const centers = [...new Set(DATA.rows.filter(x => isManual(x) && (!reg || x.region === reg)).map(x => x.center).filter(Boolean))].sort();
+            const el = document.getElementById('mn-center'); if (!el) return;
+            const cur = el.value;
+            el.innerHTML = '<option value="">All</option>';
+            centers.forEach(v => { const o = document.createElement('option'); o.value = o.text = v; el.appendChild(o); });
+            if (centers.includes(cur)) el.value = cur;
+            renderManual();
+        }
+
+        function renderManual() {
+            const d = getManualFiltered();
+            const allManual = DATA.rows.filter(isManual);
+            const totalDays = d.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
+            const uniqueFac = new Set(d.map(r => r.faculty)).size;
+            const sudden = d.filter(r => r.nature === 'Sudden').length;
+            const centersIn = [...new Set(d.map(r => r.center).filter(Boolean))].length;
+            setKPIs('mn-kpis', [
+                { label: 'Manual entries', val: d.length, sub: 'Of ' + allManual.length + ' total manual', cls: 'blue' },
+                { label: 'Leave days', val: Math.round(totalDays), sub: 'From manual sheets', cls: 'purple' },
+                { label: 'Unique faculty', val: uniqueFac, sub: 'In manual entries' },
+                { label: 'Sudden', val: sudden, sub: pct(sudden, d.length) + ' of manual', cls: 'coral' },
+                { label: 'Centers', val: centersIn, sub: 'With manual entries', cls: 'green' },
+                { label: 'Share of all data', val: pct(allManual.length, DATA.rows.length), sub: 'Manual vs total records', cls: 'amber' },
+            ]);
+            makePie('ch-mn-type', countBy(d, 'leaveType'), 'lg-mn-type', COLORS);
+            makePie('ch-mn-nature', countBy(d, 'nature'), 'lg-mn-nature', COLORS);
+            makePie('ch-mn-status', countBy(d, 'status'), 'lg-mn-status', COLORS);
+            const regDays = sumBy(d, 'region', 'actualDays');
+            makeBar('ch-mn-region', Object.keys(regDays), Object.values(regDays), 'lg-mn-region', Object.keys(regDays).map(k => COLORS[k] || '#888'));
+            const mmap = buildMonthMap(d);
+            const mons = Object.keys(mmap).sort();
+            makeChart('ch-mn-monthly', 'bar', { labels: mons.map(labelMonth), datasets: [{ label: 'Leave days', data: mons.map(m => Math.round(mmap[m] || 0)), backgroundColor: '#378ADD99', borderColor: '#378ADD', borderWidth: 1, borderRadius: 3 }] }, '', '', '');
+
+            // Center summary — grouped by region (merged region cell)
+            const regions = [...new Set(d.map(x => x.region).filter(Boolean))].sort();
+            let bodyHtml = '';
+            regions.forEach(reg => {
+                const regRows = d.filter(x => x.region === reg);
+                const centers = [...new Set(regRows.map(x => x.center).filter(Boolean))].sort();
+                centers.forEach((ctr, ci) => {
+                    const ctrRows = regRows.filter(x => x.center === ctr);
+                    const te = ctrRows.length;
+                    const se = ctrRows.filter(isSudden).length;
+                    const td = ctrRows.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
+                    const isFirst = ci === 0;
+                    const regionCell = isFirst
+                        ? `<td rowspan="${centers.length}" style="vertical-align:middle;border-right:1px solid var(--border);font-weight:600;border-top:2px solid #B5D4F4">${reg}</td>`
+                        : '';
+                    const topBorder = isFirst ? 'border-top:2px solid #B5D4F4;' : '';
+                    bodyHtml += `<tr style="${topBorder}">
+                ${regionCell}
+                <td style="font-size:12px">${ctr.replace(' Vidyapeeth', '')}</td>
+                <td style="text-align:right">${te}</td>
+                <td style="text-align:right">${fmtDays(td)}</td>
+                <td style="text-align:right">${se}</td>
+                <td style="text-align:right">${pctFmt(se, te)}</td>
+            </tr>`;
+                });
+            });
+            document.getElementById('mn-center-body').innerHTML = bodyHtml || '<tr><td colspan="6" class="empty">No manual entries.</td></tr>';
+            const mft = document.getElementById('mn-center-foot');
+            if (mft) {
+                const te = d.length, se = d.filter(isSudden).length;
+                mft.innerHTML = `<tr>
+            <td colspan="2"><strong>Grand Total</strong></td>
+            <td style="text-align:right"><strong>${te}</strong></td>
+            <td style="text-align:right"><strong>${fmtDays(totalDays)}</strong></td>
+            <td style="text-align:right"><strong>${se}</strong></td>
+            <td style="text-align:right">${pctFmt(se, te)}</td>
+        </tr>`;
+            }
+
+            // Records table
+            document.getElementById('mn-count').textContent = '(' + d.length + ' records)';
+            document.getElementById('mn-tbody').innerHTML = d.slice(0, 300).map(r => `<tr>
+    <td><strong>${r.faculty || '—'}</strong></td>
+    <td style="color:var(--text3);font-size:11px">${r.empId || '—'}</td>
+    <td style="font-size:12px">${(r.center || '—').replace(' Vidyapeeth', '')}</td>
+    <td><span class="region-tag">${r.region || '—'}</span></td>
+    <td style="font-size:12px">${r.leaveType || '—'}</td>
+    <td style="font-size:12px">${r.duration || '—'}</td>
+    <td><span class="badge b-${(r.nature || '').toLowerCase()}">${r.nature || '—'}</span></td>
+    <td style="font-weight:600">${r.actualDays || 1}</td>
+    <td style="font-size:11px">${r.infoDate || '—'}</td>
+    <td style="font-size:11px">${r.fromDate || '—'}</td>
+    <td style="font-size:11px">${r.tillDate || '—'}</td>
+    <td style="font-size:11px">${r.halfDay || '—'}</td>
+    <td><span class="badge b-${statusClass(r.status)}">${r.status || '—'}</span></td>
+  </tr>`).join('') || '<tr><td colspan="13" class="empty">No manual-entry records match filters.</td></tr>';
+        }
+
         // ── TRENDS ────────────────────────────────────────────────────
-        // Shared filtered data for trends — also used by the center table sort
         let _trendsData = [];
 
         function renderTrends() {
@@ -2027,11 +2348,9 @@
             ]);
 
             // ── Week-on-week stacked by region ────────────────────────
-            // Derive actual week boundaries from the data, not hardcoded Jan 2026
             const wkDates = r.map(x => x.fromDate).filter(Boolean).sort();
             let wkStart = wkDates[0], wkEnd = wkDates[wkDates.length - 1];
             if (!wkStart) { wkStart = '2026-01-01'; wkEnd = '2026-04-30'; }
-            // Build Mon–Sun weeks covering the range (cap at 20 weeks for readability)
             function getMon(s) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
             function getSun(s) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10); }
             const monSet = new Set(); r.forEach(x => { if (x.fromDate) monSet.add(getMon(x.fromDate)); });
@@ -2124,12 +2443,10 @@
         // Blank status = not yet reviewed = include (treated as pending/to be considered).
         function isConsidered(r) {
             const s = (r.status || '').toLowerCase().trim();
-            // Explicitly excluded statuses
             if (s === 'not to be considered') return false;
             if (s.startsWith('not to be')) return false;
             if (s === 'rejected') return false;
             if (s === 'revoked') return false;
-            // Everything else (blank, "to be considered", "approved", etc.) is included
             return true;
         }
 
@@ -2141,8 +2458,17 @@
         }
         function fmtDays(v) { return v % 1 === 0 ? v : v.toFixed(1); }
 
+        // Stats WITHOUT re-filtering — use when rows are already the intended base
+        function directStats(rows) {
+            return {
+                totalEvents: rows.length,
+                suddenEvents: rows.filter(isSudden).length,
+                totalDays: rows.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0),
+                suddenDays: rows.filter(isSudden).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0),
+            };
+        }
+
         function calcStats(rows) {
-            // ALL metrics derived from "To be considered" rows only
             const base = rows.filter(isConsidered);
             const totalEvents = base.length;
             const suddenEvents = base.filter(isSudden).length;
@@ -2173,15 +2499,17 @@
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
             const selVerts = cmsGetSelected('sd-vertical-cms');
             if (selVerts.length) r = r.filter(x => selVerts.includes(x.vertical));
+            const selSts = cmsGetSelected('sd-status-cms');
+            if (selSts.length) r = r.filter(x => selSts.includes(x.status));
 
-            // Base = "To be considered" only (excludes "Not to be considered")
-            const base = r.filter(isConsidered);
+            // Base: an explicit status selection wins; otherwise exclude "Not to be considered"
+            const base = selSts.length ? r : r.filter(isConsidered);
 
             document.getElementById('sd-period').textContent =
                 (gv('sd-from') || 'all') + ' → ' + (gv('sd-to') || 'all');
 
             // ── KPIs (all from considered base) ──────────────────────
-            const all = calcStats(r);   // calcStats already filters to considered internally
+            const all = directStats(base);
             setKPIs('sd-kpis', [
                 { label: 'Total leave events', val: all.totalEvents, sub: 'Excl. Not to be considered', cls: 'blue' },
                 { label: 'Sudden events', val: all.suddenEvents, sub: pctFmt(all.suddenEvents, all.totalEvents).replace(/<[^>]+>/g, '') + ' of total', cls: 'coral' },
@@ -2194,11 +2522,11 @@
             const regions = [...new Set(r.map(x => x.region).filter(Boolean))].sort();
             let summaryHtml = '';
             regions.forEach(reg => {
-                summaryHtml += statsRow(reg, calcStats(r.filter(x => x.region === reg)));
+                summaryHtml += statsRow(reg, directStats(base.filter(x => x.region === reg)));
             });
             const gtd = document.getElementById('sd-summary-foot');
             if (gtd) {
-                const gs = calcStats(r);
+                const gs = directStats(base);
                 gtd.innerHTML = `<tr>
             <td><strong>Grand Total</strong></td>
             <td style="text-align:right"><strong>${gs.totalEvents}</strong></td>
@@ -2213,16 +2541,12 @@
                 '<tr><td colspan="7" class="empty">No data.</td></tr>';
 
             // ── Center summary table ──────────────────────────────────
-            // Same 6 columns as region summary, but one row per center, grouped by region.
-            // Region column uses rowspan (merged cell style) for clean grouping.
             let centerBodyHtml = '';
             regions.forEach(reg => {
                 const regRows = base.filter(x => x.region === reg);
                 const centers = [...new Set(regRows.map(x => x.center).filter(Boolean))].sort();
                 centers.forEach((ctr, ci) => {
                     const ctrRows = regRows.filter(x => x.center === ctr);
-                    const s = calcStats(ctrRows);   // base already considered-only; calcStats re-filters safely
-                    // Inline stats since ctrRows is already from base
                     const te = ctrRows.length;
                     const se = ctrRows.filter(isSudden).length;
                     const td = ctrRows.reduce((acc, x) => acc + (parseFloat(x.actualDays) || 1), 0);
@@ -2246,10 +2570,9 @@
             });
             document.getElementById('sd-center-body').innerHTML = centerBodyHtml ||
                 '<tr><td colspan="8" class="empty">No data.</td></tr>';
-            // Center grand total footer
             const cgt = document.getElementById('sd-center-foot');
             if (cgt) {
-                const gs = calcStats(r);
+                const gs = directStats(base);
                 cgt.innerHTML = `<tr>
             <td colspan="2"><strong>Grand Total</strong></td>
             <td style="text-align:right"><strong>${gs.totalEvents}</strong></td>
@@ -2265,25 +2588,18 @@
             const months = [...new Set(base.map(x => x.fromDate && x.fromDate.slice(0, 7)).filter(Boolean))].sort();
             const allRegs = [...new Set(base.map(x => x.region).filter(Boolean))].sort();
 
-            // Build pivot container — replace the card's inner div with a scrollable pivot
             const pivotContainer = document.getElementById('sd-monthly-pivot');
 
             if (!months.length) {
                 pivotContainer.innerHTML = '<p class="empty">No data in range.</p>';
             } else {
-                // Each month = 6 sub-columns (events, sudden events, sudden%, days, sudden days, sudden days%)
-                // Region = rows.  Grand total row at bottom, Grand total column at right.
                 const SUBCOLS = ['Events', 'Sudden Ev.', 'Ev. %', 'Days', 'Sudden Days', 'Days %'];
 
-                // Pre-compute stats per region×month
                 const stats = {}; // stats[reg][mon]
                 allRegs.forEach(reg => {
                     stats[reg] = {};
                     months.forEach(mon => {
                         const slice = base.filter(x => x.region === reg && x.fromDate && x.fromDate.slice(0, 7) === mon);
-                        stats[reg][mon] = calcStats([...slice, ...slice.map(x => ({ ...x, status: 'To be considered' }))]);
-                        // calcStats already filters isConsidered, so pass raw slice but mark all as considered
-                        // Simpler: compute directly since slice is already filtered to base (isConsidered)
                         stats[reg][mon] = {
                             totalEvents: slice.length,
                             suddenEvents: slice.filter(isSudden).length,
@@ -2292,7 +2608,6 @@
                         };
                     });
                 });
-                // Column totals per month
                 const monthTotals = {};
                 months.forEach(mon => {
                     const slice = base.filter(x => x.fromDate && x.fromDate.slice(0, 7) === mon);
@@ -2303,7 +2618,6 @@
                         suddenDays: slice.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
                     };
                 });
-                // Row totals per region
                 const regTotals = {};
                 allRegs.forEach(reg => {
                     const slice = base.filter(x => x.region === reg);
@@ -2314,7 +2628,6 @@
                         suddenDays: slice.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
                     };
                 });
-                // Grand total
                 const grand = {
                     totalEvents: base.length,
                     suddenEvents: base.filter(isSudden).length,
@@ -2322,18 +2635,6 @@
                     suddenDays: base.filter(isSudden).reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0),
                 };
 
-                function cellBlock(s, boldTotal = false) {
-                    const b = boldTotal ? 'font-weight:600;' : '';
-                    return `
-                <td style="text-align:right;${b}">${s.totalEvents}</td>
-                <td style="text-align:right;${b}">${s.suddenEvents}</td>
-                <td style="text-align:right">${pctFmt(s.suddenEvents, s.totalEvents)}</td>
-                <td style="text-align:right;${b}">${fmtDays(s.totalDays)}</td>
-                <td style="text-align:right;${b}">${fmtDays(s.suddenDays)}</td>
-                <td style="text-align:right">${pctFmt(s.suddenDays, s.totalDays)}</td>`;
-                }
-
-                // Header row 1 — month names spanning 6 cols each, plus Region + Grand Total
                 let hdr1 = `<tr>
             <th rowspan="2" style="position:sticky;left:0;background:var(--surface);z-index:2;min-width:120px">Region</th>`;
                 months.forEach(mon => {
@@ -2341,9 +2642,8 @@
                 });
                 hdr1 += `<th colspan="6" style="text-align:center;background:#e8f0f7;border-left:2px solid var(--border)">Grand Total</th></tr>`;
 
-                // Header row 2 — sub-column labels
                 let hdr2 = '<tr>';
-                const repeatFor = months.length + 1; // months + grand total
+                const repeatFor = months.length + 1;
                 for (let i = 0; i < repeatFor; i++) {
                     const bg = i === months.length ? 'background:#e8f0f7;' : i % 2 === 0 ? 'background:#f8f9fa;' : '';
                     const bl = 'border-left:2px solid var(--border);';
@@ -2353,7 +2653,6 @@
                 }
                 hdr2 += '</tr>';
 
-                // Data rows — one per region
                 let dataRows = '';
                 allRegs.forEach(reg => {
                     let row = `<tr><td style="position:sticky;left:0;background:var(--surface);z-index:1;font-weight:500">${reg}</td>`;
@@ -2367,7 +2666,6 @@
                         <td style="text-align:right;${bg}">${fmtDays(s.suddenDays || 0)}</td>
                         <td style="text-align:right;${bg}">${pctFmt(s.suddenDays, s.totalDays)}</td>`;
                     });
-                    // Row grand total
                     const rt = regTotals[reg];
                     row += `<td style="text-align:right;border-left:2px solid var(--border);background:#e8f0f7;font-weight:600">${rt.totalEvents}</td>
                     <td style="text-align:right;background:#e8f0f7;font-weight:600">${rt.suddenEvents}</td>
@@ -2379,7 +2677,6 @@
                     dataRows += row;
                 });
 
-                // Grand total row (bottom)
                 let totalRow = `<tr style="background:#e8f0f7;font-weight:700;border-top:2px solid var(--border)">
             <td style="position:sticky;left:0;background:#e8f0f7;z-index:1">Grand Total</td>`;
                 months.forEach(mon => {
@@ -2418,14 +2715,14 @@
         <td style="font-size:12px">${row.leaveType || '—'}</td>
         <td><span class="badge b-${(row.nature || '').toLowerCase()}">${row.nature || '—'}</span></td>
         <td style="font-weight:600">${row.actualDays || 1}</td>
+        <td style="font-size:11px">${row.infoDate || '—'}</td>
         <td style="font-size:11px">${row.fromDate || '—'}</td>
         <td style="font-size:11px">${row.tillDate || '—'}</td>
+        <td style="font-size:11px">${row.halfDay || '—'}</td>
         <td><span class="badge b-${statusClass(row.status)}">${row.status || '—'}</span></td>
-    </tr>`).join('') || '<tr><td colspan="10" class="empty">No records in range.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="12" class="empty">No records in range.</td></tr>';
 
             // ── Employee-level summary ────────────────────────────────
-            // Group base (already "to be considered" only) by unique PW ID (empId).
-            // Key: empId if present, else faculty name as fallback.
             const empMap = {};
             base.forEach(row => {
                 const key = (row.empId && row.empId.trim()) ? row.empId.trim() : ('__name__' + (row.faculty || '').trim());
@@ -2489,7 +2786,6 @@
 
             const SUBCOLS = ['Events', 'Sudden Ev.', 'Ev. %', 'Days', 'Sudden Days', 'Days %'];
 
-            // Direct stat from a pre-filtered (base) slice
             function ds(rows) {
                 return {
                     totalEvents: rows.length,
@@ -2499,7 +2795,6 @@
                 };
             }
 
-            // Header row 1: sticky Region + sticky Center + month groups + Grand Total
             let hdr1 = `<tr>
         <th rowspan="2" style="position:sticky;left:0;z-index:4;background:var(--surface2);min-width:100px;text-align:left">Region</th>
         <th rowspan="2" style="position:sticky;left:100px;z-index:4;background:var(--surface2);min-width:160px;text-align:left;border-right:2px solid var(--border)">Center</th>`;
@@ -2508,7 +2803,6 @@
             });
             hdr1 += `<th colspan="6" style="text-align:center;background:#e8f0f7;border-left:2px solid var(--border)">Grand Total</th></tr>`;
 
-            // Header row 2: sub-column labels
             let hdr2 = '<tr>';
             for (let i = 0; i <= months.length; i++) {
                 const bg = i === months.length ? 'background:#e8f0f7;' : i % 2 === 0 ? 'background:#f0f4fa;' : 'background:#f8f9fa;';
@@ -2518,7 +2812,6 @@
             }
             hdr2 += '</tr>';
 
-            // Data rows
             let dataRows = '';
             regions.forEach(reg => {
                 const regRows = base.filter(x => x.region === reg);
@@ -2543,7 +2836,6 @@
                         <td style="text-align:right;${bg}">${fmtDays(s.suddenDays || 0)}</td>
                         <td style="text-align:right;${bg}">${pctFmt(s.suddenDays, s.totalDays)}</td>`;
                     });
-                    // Row grand total
                     const rt = ds(ctrRows);
                     row += `<td style="text-align:right;border-left:2px solid var(--border);background:#e8f0f7;font-weight:600">${rt.totalEvents}</td>
                     <td style="text-align:right;background:#e8f0f7;font-weight:600">${rt.suddenEvents}</td>
@@ -2556,7 +2848,6 @@
                 });
             });
 
-            // Grand total row
             let gtr = `<tr style="background:#e8f0f7;font-weight:700;border-top:2px solid var(--border)">
         <td style="position:sticky;left:0;background:#e8f0f7;z-index:1">Grand Total</td>
         <td style="position:sticky;left:100px;background:#e8f0f7;z-index:1;border-right:2px solid var(--border)"></td>`;
@@ -2584,12 +2875,6 @@
         }
 
         // ── WEEKLY BREAKDOWN PIVOT ────────────────────────────────────
-        // Layout matches sample:
-        //   • Region column shows region name only on the FIRST center row of that group (merged-cell style)
-        //   • No separate region header/subtotal rows — just center data rows
-        //   • Weeks auto-derived from date range (Mon–Sun), numbered Week 1 (earliest) … Week N (latest)
-        //     but displayed right-to-left: Cumulative | Week N | … | Week 1
-        //   • OVERALL grand-total row at bottom
         function buildWeeklyPivot(base, fromStr, toStr) {
             const el = document.getElementById('sd-weekly-pivot');
             if (!el) return;
@@ -2606,23 +2891,19 @@
             function getSun(s) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + 6); return toISO(d); }
             function fmtD(s) { if (!s) return '—'; const [, m, d] = s.split('-'); return `${+d} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1]}`; }
 
-            // Collect distinct Mon–Sun weeks that have any data in range
             const monSet = new Set();
             base.forEach(r => {
                 if (!r.fromDate || r.fromDate < rangeFrom || r.fromDate > rangeTo) return;
                 monSet.add(getMon(r.fromDate));
             });
-            // Ascending (oldest first = Week 1)
             const mondays = [...monSet].sort();
             if (!mondays.length) { el.innerHTML = '<p class="empty">No data to show.</p>'; return; }
 
-            // Week definitions: Week 1 = oldest … Week N = newest
             const weekDefs = mondays.map((mon, i) => ({
                 mon, sun: getSun(mon),
                 label: `Week No. ${i + 1}  (${fmtD(mon)} – ${fmtD(getSun(mon))})`
             }));
 
-            // Column order: Cumulative first, then Week N down to Week 1 (newest → oldest, matching sample)
             const cumLabel = `Cumulative  (${fmtD(rangeFrom)} – ${fmtD(rangeTo)})`;
             const allCols = [
                 { label: cumLabel, isCum: true },
@@ -2631,7 +2912,6 @@
 
             const SUBCOLS = ['Total Leaves Events', 'Total No. of Leaves Days', 'Sudden Leaves Events', 'Sudden Leaves Events %'];
 
-            // ── Stats for a slice ─────────────────────────────────────
             function ws(rows) {
                 const te = rows.length;
                 const td = rows.reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
@@ -2656,8 +2936,6 @@
                 <td style="text-align:right">${s.pctHtml}</td>`;
             }
 
-            // ── Build headers ─────────────────────────────────────────
-            // Row 1: Region | Center | [Cumulative colspan=4] | [Week N colspan=4] | …
             let hdr1 = `<tr>
         <th class="col-region" rowspan="2" style="text-align:left;border-right:1px solid var(--border)">Region</th>
         <th class="col-center" rowspan="2" style="text-align:left;border-right:2px solid var(--border)">Center</th>`;
@@ -2666,7 +2944,6 @@
             });
             hdr1 += '</tr>';
 
-            // Row 2: sub-column labels
             let hdr2 = '<tr class="wk-hdr2">';
             allCols.forEach((col, ci) => {
                 SUBCOLS.forEach((sc, si) => {
@@ -2677,7 +2954,6 @@
             });
             hdr2 += '</tr>';
 
-            // ── Build data rows ───────────────────────────────────────
             const regions = [...new Set(base.map(x => x.region).filter(Boolean))].sort();
             let bodyHtml = '';
 
@@ -2689,9 +2965,7 @@
                     const ctrRows = regRows.filter(x => x.center === ctr);
                     const shortName = ctr.replace(' Vidyapeeth', '');
                     const isFirst = ci === 0;
-                    const isLast = ci === centers.length - 1;
 
-                    // Region cell: show name only on first center row; rowspan covers all centers of this region
                     let regionCell;
                     if (isFirst) {
                         regionCell = `<td class="col-region" rowspan="${centers.length}"
@@ -2763,9 +3037,6 @@
         function setKPIs(id, items) { const el = document.getElementById(id); if (!el) return; el.innerHTML = items.map(k => `<div class="kpi${k.cls ? ' ' + k.cls : ''}"><div class="kpi-label">${k.label}</div><div class="kpi-val">${k.val}</div><div class="kpi-sub">${k.sub || ''}</div></div>`).join(''); }
 
         // ── EXPORT HELPERS ────────────────────────────────────────────
-        // All exports use SheetJS (xlsx).  Each function builds one or more
-        // worksheet arrays from the live filtered DATA, then triggers a download.
-
         function xlsxDownload(wb, filename) {
             XLSX.writeFile(wb, filename + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
         }
@@ -2780,6 +3051,8 @@
             if (selCens.length) r = r.filter(x => selCens.includes(x.center));
             const selVerts = cmsGetSelected('sd-vertical-cms');
             if (selVerts.length) r = r.filter(x => selVerts.includes(x.vertical));
+            const selSts = cmsGetSelected('sd-status-cms');
+            if (selSts.length) return r.filter(x => selSts.includes(x.status));
             return r.filter(isConsidered);
         }
 
@@ -2811,14 +3084,16 @@
         }
 
         // Raw records row mapper (used by several exports)
+        // Now includes Info Date (col I) and Half Day (col O); Status comes from col W
         function rowToArray(r) {
             return [
                 r.faculty || '', r.empId || '', (r.center || '').replace(' Vidyapeeth', ''),
                 r.region || '', r.leaveType || '', r.duration || '', r.nature || '',
-                parseFloat(r.actualDays) || 1, r.fromDate || '', r.tillDate || '', r.status || ''
+                parseFloat(r.actualDays) || 1, r.infoDate || '', r.fromDate || '', r.tillDate || '',
+                r.halfDay || '', r.status || ''
             ];
         }
-        const RAW_HEADERS = ['Faculty', 'Emp ID', 'Center', 'Region', 'Leave Type', 'Duration', 'Nature', 'Days', 'From', 'Till', 'Status'];
+        const RAW_HEADERS = ['Faculty', 'Emp ID', 'Center', 'Region', 'Leave Type', 'Duration', 'Nature', 'Days', 'Info Date', 'From', 'Till', 'Half Day', 'Status'];
 
         // ── Build sheets ──────────────────────────────────────────────
         function buildCenterSummarySheet(base) {
@@ -2880,11 +3155,9 @@
                 const sd = rows.filter(isSudden).reduce((s, r) => s + (parseFloat(r.actualDays) || 1), 0);
                 return [te, se, te ? (se / te * 100).toFixed(2) + '%' : '—', fmtDays(td), fmtDays(sd), td ? (sd / td * 100).toFixed(2) + '%' : '—'];
             }
-            // Header row 1
             const hdr1 = ['Region'];
             months.forEach(m => { hdr1.push(labelMonth(m)); for (let i = 1; i < 6; i++) hdr1.push(''); });
             hdr1.push('Grand Total'); for (let i = 1; i < 6; i++) hdr1.push('');
-            // Header row 2
             const hdr2 = [''];
             const rep = months.length + 1;
             for (let i = 0; i < rep; i++) SUBCOLS.forEach(s => hdr2.push(s));
@@ -2898,7 +3171,6 @@
                 statArr(base.filter(x => x.region === reg)).forEach(v => row.push(v));
                 rows.push(row);
             });
-            // Grand total row
             const gtr = ['Grand Total'];
             months.forEach(mon => {
                 statArr(base.filter(x => x.fromDate && x.fromDate.slice(0, 7) === mon)).forEach(v => gtr.push(v));
@@ -2934,7 +3206,6 @@
                 if (col.isCum) return rows.filter(r => r.fromDate && r.fromDate >= rangeFrom && r.fromDate <= rangeTo);
                 return rows.filter(r => r.fromDate && r.fromDate >= col.mon && r.fromDate <= col.sun);
             }
-            // Header rows
             const hdr1 = ['Region', 'Center']; allCols.forEach(c => { hdr1.push(c.label); for (let i = 1; i < 4; i++) hdr1.push(''); });
             const hdr2 = ['', '']; allCols.forEach(() => SUBCOLS.forEach(s => hdr2.push(s)));
             const rows = [hdr1, hdr2];
@@ -2993,7 +3264,6 @@
         function exportCenterMonthlyPivot() {
             const base = getSuddenBase();
             const wb = XLSX.utils.book_new();
-            // Reuse buildMonthlyPivotSheet but keyed by center
             const months = [...new Set(base.map(x => x.fromDate && x.fromDate.slice(0, 7)).filter(Boolean))].sort();
             const regions = [...new Set(base.map(x => x.region).filter(Boolean))].sort();
             const SUBCOLS = ['Events', 'Sudden Events', 'Sudden Ev. %', 'Days', 'Sudden Days', 'Sudden Days %'];
@@ -3007,7 +3277,6 @@
             const hdr2 = ['', '']; for (let i = 0; i <= months.length; i++) SUBCOLS.forEach(s => hdr2.push(s));
             const rows = [hdr1, hdr2];
             regions.forEach(reg => {
-                base.filter(x => x.region === reg);
                 const centers = [...new Set(base.filter(x => x.region === reg).map(x => x.center).filter(Boolean))].sort();
                 centers.forEach(ctr => {
                     const ctrRows = base.filter(x => x.center === ctr);
@@ -3089,6 +3358,36 @@
             xlsxDownload(wb, 'Faculty_Records');
         }
 
+        function exportManualRecords() {
+            const rows = getManualFiltered();
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(rows), 'Manual Entry Records');
+            xlsxDownload(wb, 'Manual_Entry_Records');
+        }
+
+        function exportManualCenterSummary() {
+            const d = getManualFiltered();
+            const regions = [...new Set(d.map(x => x.region).filter(Boolean))].sort();
+            const rows = [['Region', 'Center', 'Entries', 'Leave Days', 'Sudden', 'Sudden %']];
+            regions.forEach(reg => {
+                const regRows = d.filter(x => x.region === reg);
+                const centers = [...new Set(regRows.map(x => x.center).filter(Boolean))].sort();
+                centers.forEach(ctr => {
+                    const ctrRows = regRows.filter(x => x.center === ctr);
+                    const te = ctrRows.length;
+                    const se = ctrRows.filter(isSudden).length;
+                    const td = ctrRows.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
+                    rows.push([reg, ctr.replace(' Vidyapeeth', ''), te, fmtDays(td), se, te ? (se / te * 100).toFixed(2) + '%' : '—']);
+                });
+            });
+            const te = d.length, se = d.filter(isSudden).length;
+            const td = d.reduce((s, x) => s + (parseFloat(x.actualDays) || 1), 0);
+            rows.push(['Grand Total', '', te, fmtDays(td), se, te ? (se / te * 100).toFixed(2) + '%' : '—']);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Manual Center Summary');
+            xlsxDownload(wb, 'Manual_Center_Summary');
+        }
+
         // ── Export All — full workbook with every section ─────────────
         function exportAllSheets() {
             if (!DATA.rows.length) { alert('No data loaded yet.'); return; }
@@ -3114,6 +3413,7 @@
             XLSX.utils.book_append_sheet(wb, buildMonthlyPivotSheet(base), 'SD Monthly Pivot'); XLSX.utils.book_append_sheet(wb, buildWeeklySheet(base, gv('sd-from'), gv('sd-to')), 'SD Weekly Breakdown');
             XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(base), 'SD Records');
             XLSX.utils.book_append_sheet(wb, buildEmpSummarySheet(base), 'SD Employee Summary');
+            XLSX.utils.book_append_sheet(wb, buildRawRecordsSheet(getManualFiltered()), 'Manual Entry Records');
             xlsxDownload(wb, 'Leave_Dashboard_Export');
         }
 
